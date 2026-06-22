@@ -1,0 +1,50 @@
+spring:
+  application:
+    name: collabdesk-backend
+
+  threads:
+    virtual:
+      enabled: true   # Java 21 virtual threads
+
+  datasource:
+    url: jdbc:h2:file:./data/collabdesk;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  jpa:
+    hibernate:
+      ddl-auto: validate          # schema managed by data.sql
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        default_batch_fetch_size: 20
+
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+      data-locations: classpath:data.sql
+
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=500,expireAfterWrite=5m
+
+server:
+  port: 8080
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:please-change-this-to-a-256-bit-secret-in-production}
+    access-token-expiry-ms: 900000        # 15 min
+    refresh-token-expiry-ms: 604800000    # 7 days
+  cors:
+    allowed-origins:
+      - http://localhost:4200
