@@ -9,5 +9,6 @@ import java.util.UUID;
 
 public interface ProjectRepository extends JpaRepository<Project, UUID> {
     List<Project> findAllByTenantId(UUID tenantId);
+    List<Project> findAllByTenantIdOrderByCreatedAtDesc(UUID tenantId);
     Optional<Project> findByIdAndTenantId(UUID id, UUID tenantId);
 }

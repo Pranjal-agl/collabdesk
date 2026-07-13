@@ -1,5 +1,6 @@
 package com.collabdesk.service;
 
+import com.collabdesk.audit.AuditService;
 import com.collabdesk.domain.entity.Issue;
 import com.collabdesk.domain.entity.User;
 import com.collabdesk.domain.enums.IssueStatus;
@@ -7,6 +8,7 @@ import com.collabdesk.dto.request.CreateIssueRequest;
 import com.collabdesk.dto.request.UpdateIssueRequest;
 import com.collabdesk.dto.response.IssueResponse;
 import com.collabdesk.repository.IssueRepository;
+import com.collabdesk.repository.ProjectRepository;
 import com.collabdesk.websocket.IssueEventPublisher;
 import jakarta.persistence.OptimisticLockException;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +31,9 @@ import java.util.UUID;
 public class IssueService {
 
     private final IssueRepository issueRepository;
+    private final ProjectRepository projectRepository;
     private final IssueEventPublisher eventPublisher;
+    private final AuditService auditService;
 
     @Cacheable(value = "issues", key = "#tenantId + '-' + #projectId + '-' + #pageable")
     public Page<IssueResponse> list(UUID tenantId, UUID projectId, Pageable pageable) {
@@ -48,6 +52,9 @@ public class IssueService {
     @Transactional
     @CacheEvict(value = {"issues", "issue"}, allEntries = true)
     public IssueResponse create(CreateIssueRequest req, User actor) {
+        projectRepository.findByIdAndTenantId(req.projectId(), actor.getTenantId())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+
         var issue = Issue.builder()
                 .tenantId(actor.getTenantId())
                 .projectId(req.projectId())
@@ -61,6 +68,7 @@ public class IssueService {
 
         Issue saved = issueRepository.save(issue);
         eventPublisher.publishCreated(saved);
+        auditService.log(actor.getTenantId(), actor.getId(), "CREATE", "ISSUE", saved.getId(), saved.getTitle());
         return IssueResponse.from(saved);
     }
 
@@ -93,6 +101,7 @@ public class IssueService {
 
             Issue saved = issueRepository.save(issue);
             eventPublisher.publishUpdated(saved);
+            auditService.log(actor.getTenantId(), actor.getId(), "UPDATE", "ISSUE", saved.getId(), saved.getTitle());
             return IssueResponse.from(saved);
 
         } catch (OptimisticLockException e) {
@@ -110,5 +119,6 @@ public class IssueService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         issueRepository.delete(issue);
         eventPublisher.publishDeleted(issueId, actor.getTenantId());
+        auditService.log(actor.getTenantId(), actor.getId(), "DELETE", "ISSUE", issueId, issue.getTitle());
     }
 }

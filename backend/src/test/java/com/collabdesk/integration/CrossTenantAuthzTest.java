@@ -28,13 +28,13 @@ class CrossTenantAuthzTest {
     @Autowired ObjectMapper mapper;
 
     // Issue belonging to Acme tenant (seeded in data.sql / test fixtures)
-    private static final String ACME_PROJECT_ID   = "00000000-aaaa-0000-0000-000000000001";
-    private static final String ACME_ISSUE_ID      = "00000000-aaaa-0000-0000-000000000002";
+    private static final String ACME_PROJECT_ID    = "10000000-0000-0000-0000-000000000001";
+    private static final String ACME_ISSUE_ID      = "30000000-0000-0000-0000-000000000001";
 
     @Test
     @DisplayName("Eve (Evil Corp) cannot read Acme's issue — expects 404")
     void eveCannotReadAcmeIssue() throws Exception {
-        String eveToken = loginAs("eve@evil.com", "Password1!");
+        String eveToken = loginAs("eve@evil.com", "admin123");
 
         mvc.perform(get("/api/projects/{projectId}/issues/{issueId}",
                         ACME_PROJECT_ID, ACME_ISSUE_ID)
@@ -45,7 +45,7 @@ class CrossTenantAuthzTest {
     @Test
     @DisplayName("Alice (Acme Admin) can read her own issue — expects 200")
     void aliceCanReadOwnIssue() throws Exception {
-        String aliceToken = loginAs("alice@acme.com", "Password1!");
+        String aliceToken = loginAs("alice@acme.com", "admin123");
 
         mvc.perform(get("/api/projects/{projectId}/issues/{issueId}",
                         ACME_PROJECT_ID, ACME_ISSUE_ID)

@@ -1,5 +1,6 @@
 import { Injectable, OnDestroy, signal } from '@angular/core';
-import { Client, IMessage } from '@stomp/rx-stomp';
+import { RxStomp } from '@stomp/rx-stomp';
+import { IMessage } from '@stomp/stompjs';
 import { Observable, Subject, timer } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { AuthService } from './auth.service';
@@ -12,7 +13,7 @@ export class WebSocketService implements OnDestroy {
 
   readonly connectionState = signal<WsConnectionState>('DISCONNECTED');
 
-  private client: Client | null = null;
+  private client: RxStomp | null = null;
   private reconnectAttempt = 0;
   private readonly MAX_BACKOFF_MS = 30_000;
   private readonly destroy$ = new Subject<void>();
@@ -27,16 +28,17 @@ export class WebSocketService implements OnDestroy {
 
     this.connectionState.set('CONNECTING');
 
-    this.client = new Client({
+    this.client = new RxStomp();
+    this.client.configure({
       brokerURL: environment.wsUrl,
       connectHeaders: { Authorization: `Bearer ${token}` },
       // Exponential backoff: on disconnect, wait before reconnecting
       reconnectDelay: 0,   // we control reconnect manually
     });
 
-    this.client.onConnect    = ()  => this.onConnected();
-    this.client.onDisconnect = ()  => this.scheduleReconnect();
-    this.client.onStompError = ()  => this.scheduleReconnect();
+    this.client.connected$.subscribe(() => this.onConnected());
+    this.client.stompErrors$.subscribe(() => this.scheduleReconnect());
+    this.client.webSocketErrors$.subscribe(() => this.scheduleReconnect());
 
     this.client.activate();
   }
@@ -47,7 +49,7 @@ export class WebSocketService implements OnDestroy {
    */
   subscribe<T>(destination: string): Observable<T> {
     return new Observable(observer => {
-      const sub = this.client?.subscribe(destination, (msg: IMessage) => {
+      const sub = this.client?.watch(destination).subscribe((msg: IMessage) => {
         try {
           observer.next(JSON.parse(msg.body) as T);
         } catch {

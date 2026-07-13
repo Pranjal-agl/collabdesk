@@ -1,0 +1,8 @@
+ cd /home/alice-knox/Downloads/collabdesk-main/frontend && npm run build -- --configuration production
+ cd /home/alice-knox/Downloads/collabdesk-main/frontend && CI=1 npx ng build --configuration production --no-progress
+ cd /home/alice-knox/Downloads/collabdesk-main && git status --short
+ cd /home/alice-knox/Downloads/collabdesk-main && git --no-pager status --short
+ cd /home/alice-knox/Downloads/collabdesk-main/frontend && ./node_modules/.bin/ng build --configuration production --no-progress
+ cd /home/alice-knox/Downloads/collabdesk-main/frontend && npm run build -- --configuration production --no-progress >/tmp/collabdesk-ng-build.log 2>&1; status=$?; tail -n 80 /tmp/collabdesk-ng-build.log; exit $status
+ cd /home/alice-knox/Downloads/collabdesk-main/frontend && ./node_modules/.bin/tsc -p tsconfig.json --noEmit
+ cd /home/alice-knox/Downloads/collabdesk-main/frontend && npm install

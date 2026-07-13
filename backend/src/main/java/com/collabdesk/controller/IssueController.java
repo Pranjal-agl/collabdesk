@@ -11,9 +11,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.UUID;
 
@@ -42,8 +42,12 @@ public class IssueController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public IssueResponse create(
+            @PathVariable UUID projectId,
             @Valid @RequestBody CreateIssueRequest req,
             @AuthenticationPrincipal User user) {
+        if (!projectId.equals(req.projectId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Path projectId must match body projectId");
+        }
         return issueService.create(req, user);
     }
 

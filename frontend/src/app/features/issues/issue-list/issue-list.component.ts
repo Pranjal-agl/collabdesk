@@ -3,6 +3,7 @@ import {
   inject, input, signal
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { Subject, takeUntil } from 'rxjs';
@@ -14,7 +15,7 @@ import { Issue } from '../../../core/models/issue.model';
   selector: 'cd-issue-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterLink],
   template: `
     <!-- Hidden heading for screen readers -->
     <h2 class="sr-only">Issues for project {{ projectId() }}</h2>
@@ -44,6 +45,10 @@ import { Issue } from '../../../core/models/issue.model';
               [disabled]="issue.status === 'DONE'">
               Mark done
             </button>
+            <a [routerLink]="['/projects', projectId(), 'issues', issue.id]"
+               [attr.aria-label]="'Open details for issue ' + issue.title">
+              Details
+            </a>
           </article>
         </li>
       } @empty {

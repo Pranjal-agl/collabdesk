@@ -32,6 +32,10 @@ export class IssueService {
       );
   }
 
+  getById(projectId: string, issueId: string): Observable<Issue> {
+    return this.http.get<Issue>(`${environment.apiUrl}/projects/${projectId}/issues/${issueId}`);
+  }
+
   /**
    * Optimistic update:
    * 1. Snapshot current state
