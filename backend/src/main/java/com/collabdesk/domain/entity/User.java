@@ -33,7 +33,4 @@ public class User extends BaseEntity {
      */
     @Column(name = "token_version", nullable = false)
     private Long tokenVersion = 0L;
-
-    @Column(name = "refresh_token_hash")
-    private String refreshTokenHash;
 }

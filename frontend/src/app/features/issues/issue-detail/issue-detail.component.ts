@@ -6,8 +6,12 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Subject, takeUntil } from 'rxjs';
 import { IssueService } from '../../../core/services/issue.service';
 import { WebSocketService } from '../../../core/services/websocket.service';
+import { AuthService } from '../../../core/services/auth.service';
 import { Issue } from '../../../core/models/issue.model';
 import { CommentThreadComponent } from '../comment-thread/comment-thread.component';
+
+interface PresenceUser { userId: string; displayName: string; }
+interface PresenceEvent { projectId: string; users: PresenceUser[]; }
 
 @Component({
   selector: 'cd-issue-detail',
@@ -17,6 +21,16 @@ import { CommentThreadComponent } from '../comment-thread/comment-thread.compone
   template: `
     <main class="issue-detail-shell">
       <a [routerLink]="['/projects', projectId(), 'issues']">Back to board</a>
+
+      @if (presentUsers().length > 0) {
+        <!-- Presence isn't critical info, so it's polite (doesn't interrupt) not assertive. -->
+        <div class="presence-row" role="status" aria-live="polite">
+          <span class="presence-label">Viewing now:</span>
+          @for (u of presentUsers(); track u.userId) {
+            <span class="presence-chip">{{ u.displayName }}</span>
+          }
+        </div>
+      }
 
       @if (issue()) {
         <section class="issue-card">
@@ -44,7 +58,9 @@ import { CommentThreadComponent } from '../comment-thread/comment-thread.compone
   styles: [
     '.issue-detail-shell { display: grid; gap: 1.2rem; }',
     '.issue-card { border: 1px solid rgba(0,0,0,0.12); border-radius: 0.9rem; padding: 1rem; display: grid; gap: 0.8rem; }',
-    '.meta-row { display: flex; gap: 1rem; flex-wrap: wrap; opacity: 0.8; }'
+    '.meta-row { display: flex; gap: 1rem; flex-wrap: wrap; opacity: 0.8; }',
+    '.presence-row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; font-size: 0.85rem; opacity: 0.85; }',
+    '.presence-chip { border: 1px solid rgba(0,0,0,0.15); border-radius: 999px; padding: 0.1rem 0.6rem; }'
   ]
 })
 export class IssueDetailComponent implements OnInit, OnDestroy {
@@ -53,9 +69,11 @@ export class IssueDetailComponent implements OnInit, OnDestroy {
 
   private issueService = inject(IssueService);
   private ws = inject(WebSocketService);
+  private auth = inject(AuthService);
   private snackBar = inject(MatSnackBar);
 
   readonly issue = signal<Issue | null>(null);
+  readonly presentUsers = signal<PresenceUser[]>([]);
   private readonly destroy$ = new Subject<void>();
 
   ngOnInit(): void {
@@ -69,6 +87,19 @@ export class IssueDetailComponent implements OnInit, OnDestroy {
           this.issue.set(event.data);
         }
       });
+
+    // Presence: announce we're viewing this project, and reconcile against
+    // the server's latest snapshot whenever it broadcasts one. We don't try
+    // to merge join/leave deltas client-side — the snapshot is the only
+    // source of truth, which keeps this eventually-consistent even if a
+    // broadcast is missed during a reconnect.
+    this.ws.subscribe<PresenceEvent>(`/topic/presence/${this.projectId()}`)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((event) => {
+        const me = this.auth.currentUser()?.sub;
+        this.presentUsers.set(event.users.filter(u => u.userId !== me));
+      });
+    this.ws.publish(`/app/presence/${this.projectId()}/join`, {});
   }
 
   toggleDone(): void {

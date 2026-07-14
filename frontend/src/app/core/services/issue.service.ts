@@ -1,4 +1,4 @@
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, shareReplay, tap, catchError, throwError } from 'rxjs';
 import { Issue, Page } from '../models/issue.model';

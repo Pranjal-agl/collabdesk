@@ -49,3 +49,6 @@ app:
   cors:
     allowed-origins:
       - http://localhost:4200
+  rate-limit:
+    requests-per-window: 120   # per tenant (or per-IP pre-auth)
+    window-seconds: 60

@@ -56,7 +56,7 @@ class CrossTenantAuthzTest {
     private String loginAs(String email, String password) throws Exception {
         MvcResult result = mvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(new LoginRequest(email, password))))
+                        .content(mapper.writeValueAsString(new LoginRequest(email, password, "test-device"))))
                 .andExpect(status().isOk())
                 .andReturn();
 

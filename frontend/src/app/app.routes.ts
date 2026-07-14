@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard } from './core/guards/auth.guard';
+import { authGuard, adminGuard } from './core/guards/auth.guard';
 
 export const APP_ROUTES: Routes = [
   {
@@ -12,6 +12,12 @@ export const APP_ROUTES: Routes = [
     canActivate: [authGuard],
     loadChildren: () =>
       import('./features/projects/projects.routes').then(m => m.PROJECT_ROUTES)
+  },
+  {
+    path: 'admin/audit-log',
+    canActivate: [authGuard, adminGuard],
+    loadComponent: () =>
+      import('./features/admin/audit-log/audit-log.component').then(m => m.AuditLogComponent)
   },
   {
     path: '',

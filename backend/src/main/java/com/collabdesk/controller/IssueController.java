@@ -10,11 +10,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Duration;
 import java.util.UUID;
 
 @RestController
@@ -24,19 +27,29 @@ public class IssueController {
 
     private final IssueService issueService;
 
+    // See ProjectController for the full caching-layer rationale (app cache +
+    // HTTP ETag + WebSocket push invalidation). Issue lists change often, so a
+    // short max-age (10s) plus ETag revalidation keeps clients close to fresh
+    // without hammering the server on every poll/refetch.
     @GetMapping
-    public Page<IssueResponse> list(
+    public ResponseEntity<Page<IssueResponse>> list(
             @PathVariable UUID projectId,
             @AuthenticationPrincipal User user,
             @PageableDefault(size = 25) Pageable pageable) {
-        return issueService.list(user.getTenantId(), projectId, pageable);
+        Page<IssueResponse> page = issueService.list(user.getTenantId(), projectId, pageable);
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.empty().cachePrivate().maxAge(Duration.ofSeconds(10)).mustRevalidate())
+                .body(page);
     }
 
     @GetMapping("/{issueId}")
-    public IssueResponse get(
+    public ResponseEntity<IssueResponse> get(
             @PathVariable UUID issueId,
             @AuthenticationPrincipal User user) {
-        return issueService.get(issueId, user.getTenantId());
+        IssueResponse issue = issueService.get(issueId, user.getTenantId());
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.empty().cachePrivate().maxAge(Duration.ofSeconds(10)).mustRevalidate())
+                .body(issue);
     }
 
     @PostMapping

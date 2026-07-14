@@ -60,6 +60,11 @@ export class WebSocketService implements OnDestroy {
     });
   }
 
+  /** Sends a message to the server. RxStomp queues it if not yet connected. */
+  publish(destination: string, body: unknown): void {
+    this.client?.publish({ destination, body: JSON.stringify(body) });
+  }
+
   disconnect(): void {
     this.client?.deactivate();
     this.connectionState.set('DISCONNECTED');

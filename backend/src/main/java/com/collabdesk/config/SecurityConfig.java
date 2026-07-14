@@ -1,6 +1,7 @@
 package com.collabdesk.config;
 
 import com.collabdesk.security.filter.JwtAuthenticationFilter;
+import com.collabdesk.security.filter.RateLimitFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -30,6 +31,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtFilter;
+    private final RateLimitFilter rateLimitFilter;
 
     @Value("${app.cors.allowed-origins:http://localhost:4200}")
     private List<String> allowedOrigins;
@@ -48,6 +50,8 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+                // Runs after JWT auth so it can rate-limit per-tenant, not just per-IP.
+                .addFilterAfter(rateLimitFilter, JwtAuthenticationFilter.class)
                 .build();
     }
 

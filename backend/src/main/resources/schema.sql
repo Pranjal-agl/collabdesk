@@ -15,10 +15,21 @@ CREATE TABLE IF NOT EXISTS users (
     display_name         VARCHAR(100) NOT NULL,
     role                 VARCHAR(20)  NOT NULL DEFAULT 'MEMBER',
     token_version        BIGINT       NOT NULL DEFAULT 0,
-    refresh_token_hash   VARCHAR(255),
     created_at           TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uq_user_email UNIQUE (email)
 );
+
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+    id            UUID         NOT NULL DEFAULT RANDOM_UUID() PRIMARY KEY,
+    user_id       UUID         NOT NULL REFERENCES users(id),
+    token_hash    VARCHAR(255) NOT NULL,
+    device_label  VARCHAR(200),
+    created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at    TIMESTAMP    NOT NULL,
+    revoked_at    TIMESTAMP,
+    CONSTRAINT uq_refresh_token_hash UNIQUE (token_hash)
+);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
 
 CREATE TABLE IF NOT EXISTS projects (
     id          UUID         NOT NULL DEFAULT RANDOM_UUID() PRIMARY KEY,
