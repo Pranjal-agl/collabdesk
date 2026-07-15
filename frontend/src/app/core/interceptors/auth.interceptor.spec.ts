@@ -42,7 +42,6 @@ describe('authInterceptor', () => {
   });
 
   it('on a 401, refreshes once and transparently retries the original request', () => {
-    const auth = TestBed.inject(AuthService);
     localStorage.setItem('cd_refresh_token', 'refresh-1');
 
     let result: unknown;
