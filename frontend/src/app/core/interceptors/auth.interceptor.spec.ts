@@ -9,7 +9,6 @@ import { environment } from '../../../environments/environment';
 describe('authInterceptor', () => {
   let http: HttpClient;
   let httpMock: HttpTestingController;
-  let auth: AuthService;
 
   beforeEach(() => {
     localStorage.clear();
@@ -22,7 +21,9 @@ describe('authInterceptor', () => {
     });
     http = TestBed.inject(HttpClient);
     httpMock = TestBed.inject(HttpTestingController);
-    auth = TestBed.inject(AuthService);
+    // AuthService reads localStorage only once, in its field initializer at
+    // construction time - so it must not be injected here, before individual
+    // tests have had a chance to seed localStorage with their own token state.
   });
 
   afterEach(() => {
@@ -32,8 +33,7 @@ describe('authInterceptor', () => {
 
   it('attaches the access token to outgoing requests', () => {
     localStorage.setItem('cd_access_token', 'access-1');
-    // Force the service's in-memory signal to pick up what we just seeded.
-    auth = TestBed.inject(AuthService);
+    TestBed.inject(AuthService); // constructs now, picking up the token we just seeded
 
     http.get(`${environment.apiUrl}/projects`).subscribe();
     const req = httpMock.expectOne(`${environment.apiUrl}/projects`);
@@ -42,6 +42,7 @@ describe('authInterceptor', () => {
   });
 
   it('on a 401, refreshes once and transparently retries the original request', () => {
+    const auth = TestBed.inject(AuthService);
     localStorage.setItem('cd_refresh_token', 'refresh-1');
 
     let result: unknown;
@@ -61,6 +62,7 @@ describe('authInterceptor', () => {
   });
 
   it('clears the session and gives up if the refresh itself fails, instead of retrying forever', () => {
+    const auth = TestBed.inject(AuthService);
     localStorage.setItem('cd_refresh_token', 'refresh-1');
 
     let errored = false;
