@@ -38,6 +38,13 @@ spring:
     caffeine:
       spec: maximumSize=500,expireAfterWrite=5m
 
+  mvc:
+    pathmatch:
+      # The default PathPatternParser rejects a captured variable after a "/**"
+      # wildcard (used by SpaForwardingController below to catch nested Angular
+      # routes like /projects/{id}/issues/{id}). AntPathMatcher allows it.
+      matching-strategy: ant_path_matcher
+
 server:
   port: 8080
 
