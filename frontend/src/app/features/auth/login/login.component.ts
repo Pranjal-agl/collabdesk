@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
@@ -80,9 +81,22 @@ export class LoginComponent {
 
     this.auth.login(this.form.getRawValue()).subscribe({
       next: () => this.router.navigate(['/projects']),
-      error: () => {
+      error: (err: HttpErrorResponse) => {
         this.loading.set(false);
-        this.errorMessage.set('Invalid email or password. Please try again.');
+        // Log the real error for anyone debugging - the UI message below is
+        // deliberately vague for 401s (don't reveal whether the email exists),
+        // but a network/server failure is a different problem entirely and
+        // showing "wrong password" for it just sends people down the wrong path.
+        console.error('Login failed:', err);
+        if (err.status === 0) {
+          this.errorMessage.set("Can't reach the server. Check your connection and that the backend is running.");
+        } else if (err.status === 401) {
+          this.errorMessage.set('Invalid email or password. Please try again.');
+        } else if (err.status === 429) {
+          this.errorMessage.set('Too many attempts. Please wait a moment and try again.');
+        } else {
+          this.errorMessage.set('Something went wrong on our end. Please try again shortly.');
+        }
       }
     });
   }
