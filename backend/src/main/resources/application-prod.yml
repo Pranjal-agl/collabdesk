@@ -1,0 +1,11 @@
+spring:
+  h2:
+    console:
+      enabled: false
+
+app:
+  jwt:
+    # No default here on purpose: if JWT_SECRET isn't set as a real env var in
+    # this profile, startup fails loudly instead of silently signing tokens
+    # with a publicly-known placeholder secret.
+    secret: ${JWT_SECRET}

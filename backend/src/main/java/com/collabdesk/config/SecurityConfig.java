@@ -47,7 +47,13 @@ public class SecurityConfig {
                         .requestMatchers("/h2-console/**").permitAll()
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
-                        .anyRequest().authenticated()
+                        .requestMatchers("/api/**").authenticated()
+                        // Everything else is the Angular shell + its static assets (js/css/
+                        // images) plus deep-linked routes like /projects forwarded to
+                        // index.html by SpaForwardingController. These must be publicly
+                        // loadable - Angular's own route guards enforce auth client-side,
+                        // and every real API call still goes through /api/** above.
+                        .anyRequest().permitAll()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 // Runs after JWT auth so it can rate-limit per-tenant, not just per-IP.
