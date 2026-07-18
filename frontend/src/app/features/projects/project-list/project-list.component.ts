@@ -10,6 +10,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { finalize } from 'rxjs';
 import { ProjectService } from '../../../core/services/project.service';
+import { Project } from '../../../core/models/project.model';
 
 @Component({
   selector: 'cd-project-list',
@@ -61,16 +62,39 @@ import { ProjectService } from '../../../core/services/project.service';
       <section class="project-grid" role="list" aria-label="Project list">
         @for (project of projectService.projects(); track project.id) {
           <mat-card class="project-card" role="listitem">
-            <mat-card-header>
-              <mat-card-title>{{ project.name }}</mat-card-title>
-              <mat-card-subtitle>{{ project.createdAt | date:'mediumDate' }}</mat-card-subtitle>
-            </mat-card-header>
-            <mat-card-content>
-              <p>{{ project.description || 'No description yet.' }}</p>
-            </mat-card-content>
-            <mat-card-actions>
-              <a mat-button [routerLink]="['/projects', project.id, 'issues']">Open board</a>
-            </mat-card-actions>
+            @if (editingId() === project.id) {
+              <mat-card-content>
+                <form [formGroup]="editForm" (ngSubmit)="saveEdit(project)" class="edit-form">
+                  <mat-form-field appearance="outline">
+                    <mat-label>Project name</mat-label>
+                    <input matInput formControlName="name" maxlength="200" />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>Description</mat-label>
+                    <textarea matInput formControlName="description" rows="2" maxlength="5000"></textarea>
+                  </mat-form-field>
+                  <div class="edit-actions">
+                    <button mat-flat-button color="primary" type="submit" [disabled]="editForm.invalid || saving()">
+                      @if (saving()) { Saving... } @else { Save }
+                    </button>
+                    <button mat-button type="button" (click)="cancelEdit()">Cancel</button>
+                  </div>
+                </form>
+              </mat-card-content>
+            } @else {
+              <mat-card-header>
+                <mat-card-title>{{ project.name }}</mat-card-title>
+                <mat-card-subtitle>{{ project.createdAt | date:'mediumDate' }}</mat-card-subtitle>
+              </mat-card-header>
+              <mat-card-content>
+                <p>{{ project.description || 'No description yet.' }}</p>
+              </mat-card-content>
+              <mat-card-actions>
+                <a mat-button [routerLink]="['/projects', project.id, 'issues']">Open board</a>
+                <button mat-button type="button" (click)="startEdit(project)">Edit</button>
+                <button mat-button type="button" class="delete-btn" (click)="deleteProject(project)">Delete</button>
+              </mat-card-actions>
+            }
           </mat-card>
         } @empty {
           <p>No projects yet. Create one to get started.</p>
@@ -86,6 +110,9 @@ import { ProjectService } from '../../../core/services/project.service';
     .project-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
     .project-card { height: 100%; }
     .loading-state { display: inline-flex; align-items: center; gap: 0.75rem; }
+    .edit-form { display: grid; gap: 0.75rem; }
+    .edit-actions { display: flex; gap: 0.5rem; }
+    .delete-btn { color: #b3261e; }
   `]
 })
 export class ProjectListComponent implements OnInit {
@@ -98,6 +125,13 @@ export class ProjectListComponent implements OnInit {
     description: ['', Validators.maxLength(5000)]
   });
   readonly submitting = signal(false);
+
+  readonly editingId = signal<string | null>(null);
+  readonly saving = signal(false);
+  readonly editForm = this.fb.nonNullable.group({
+    name: ['', [Validators.required, Validators.maxLength(200)]],
+    description: ['', Validators.maxLength(5000)]
+  });
 
   ngOnInit() {
     this.projectService.loadAll().subscribe();
@@ -122,5 +156,52 @@ export class ProjectListComponent implements OnInit {
         },
         error: () => this.snackBar.open('Could not create project', 'Dismiss', { duration: 4000 })
       });
+  }
+
+  startEdit(project: Project): void {
+    this.editForm.setValue({
+      name: project.name,
+      description: project.description ?? ''
+    });
+    this.editingId.set(project.id);
+  }
+
+  cancelEdit(): void {
+    this.editingId.set(null);
+  }
+
+  saveEdit(project: Project): void {
+    if (this.editForm.invalid || this.saving()) {
+      return;
+    }
+
+    this.saving.set(true);
+    const { name, description } = this.editForm.getRawValue();
+
+    this.projectService
+      .update(project.id, { name: name.trim(), description: description.trim(), version: project.version })
+      .pipe(finalize(() => this.saving.set(false)))
+      .subscribe({
+        next: () => {
+          this.editingId.set(null);
+          this.snackBar.open('Project updated', 'Dismiss', { duration: 2500 });
+        },
+        error: (err) => {
+          const msg = err.status === 409
+            ? 'Project changed elsewhere. Please refresh and retry.'
+            : 'Could not update project';
+          this.snackBar.open(msg, 'Dismiss', { duration: 4000 });
+        }
+      });
+  }
+
+  deleteProject(project: Project): void {
+    if (!confirm(`Delete "${project.name}" and all its issues? This can't be undone.`)) {
+      return;
+    }
+    this.projectService.delete(project.id).subscribe({
+      next: () => this.snackBar.open('Project deleted', 'Dismiss', { duration: 2500 }),
+      error: () => this.snackBar.open('Could not delete project', 'Dismiss', { duration: 4000 })
+    });
   }
 }

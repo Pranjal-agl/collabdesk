@@ -1,8 +1,16 @@
 import { Injectable, signal } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, shareReplay, tap, catchError, throwError } from 'rxjs';
-import { Issue, Page } from '../models/issue.model';
+import { Issue, Page, Priority } from '../models/issue.model';
 import { environment } from '../../../environments/environment';
+
+export interface CreateIssueRequest {
+  projectId: string;
+  title: string;
+  description?: string;
+  priority: Priority;
+  assigneeId?: string;
+}
 
 @Injectable({ providedIn: 'root' })
 export class IssueService {
@@ -34,6 +42,28 @@ export class IssueService {
 
   getById(projectId: string, issueId: string): Observable<Issue> {
     return this.http.get<Issue>(`${environment.apiUrl}/projects/${projectId}/issues/${issueId}`);
+  }
+
+  /** Creates an issue and prepends it to the in-memory list on success. */
+  create(projectId: string, req: CreateIssueRequest): Observable<Issue> {
+    return this.http
+      .post<Issue>(`${environment.apiUrl}/projects/${projectId}/issues`, req)
+      .pipe(tap(issue => this._issues.update(list => [issue, ...list])));
+  }
+
+  /** Deletes an issue optimistically, rolling back if the server call fails. */
+  delete(projectId: string, issueId: string): Observable<void> {
+    const snapshot = this._issues();
+    this._issues.update(list => list.filter(i => i.id !== issueId));
+
+    return this.http
+      .delete<void>(`${environment.apiUrl}/projects/${projectId}/issues/${issueId}`)
+      .pipe(
+        catchError((err: HttpErrorResponse) => {
+          this._issues.set(snapshot);
+          return throwError(() => err);
+        })
+      );
   }
 
   /**
