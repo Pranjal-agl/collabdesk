@@ -29,12 +29,13 @@ import { Project } from '../../../core/models/project.model';
   ],
   template: `
     <main class="dashboard-shell">
-      <header class="hero">
+      <header class="hero enter">
+        <p class="eyebrow">Ops board</p>
         <h1>Project dashboard</h1>
-        <p>Spin up a workspace and jump straight into your issue board.</p>
+        <p class="subtitle">Spin up a workspace and jump straight into your issue board.</p>
       </header>
 
-      <section class="create-panel" aria-label="Create project">
+      <section class="panel create-panel enter" aria-label="Create project">
         <form [formGroup]="createForm" (ngSubmit)="createProject()">
           <mat-form-field appearance="outline">
             <mat-label>Project name</mat-label>
@@ -61,9 +62,9 @@ import { Project } from '../../../core/models/project.model';
 
       <section class="project-grid" role="list" aria-label="Project list">
         @for (project of projectService.projects(); track project.id) {
-          <mat-card class="project-card" role="listitem">
+          <article class="card-raised project-card enter" role="listitem">
             @if (editingId() === project.id) {
-              <mat-card-content>
+              <div class="card-inner">
                 <form [formGroup]="editForm" (ngSubmit)="saveEdit(project)" class="edit-form">
                   <mat-form-field appearance="outline">
                     <mat-label>Project name</mat-label>
@@ -80,39 +81,50 @@ import { Project } from '../../../core/models/project.model';
                     <button mat-button type="button" (click)="cancelEdit()">Cancel</button>
                   </div>
                 </form>
-              </mat-card-content>
+              </div>
             } @else {
-              <mat-card-header>
-                <mat-card-title>{{ project.name }}</mat-card-title>
-                <mat-card-subtitle>{{ project.createdAt | date:'mediumDate' }}</mat-card-subtitle>
-              </mat-card-header>
-              <mat-card-content>
-                <p>{{ project.description || 'No description yet.' }}</p>
-              </mat-card-content>
-              <mat-card-actions>
-                <a mat-button [routerLink]="['/projects', project.id, 'issues']">Open board</a>
-                <button mat-button type="button" (click)="startEdit(project)">Edit</button>
-                <button mat-button type="button" class="delete-btn" (click)="deleteProject(project)">Delete</button>
-              </mat-card-actions>
+              <div class="card-inner">
+                <div class="card-head">
+                  <h3>{{ project.name }}</h3>
+                  <span class="card-date">{{ project.createdAt | date:'MMM d' }}</span>
+                </div>
+                <p class="card-desc">{{ project.description || 'No description yet.' }}</p>
+                <div class="card-actions">
+                  <a mat-button [routerLink]="['/projects', project.id, 'issues']">Open board →</a>
+                  <button mat-button type="button" (click)="startEdit(project)">Edit</button>
+                  <button mat-button type="button" class="delete-btn" (click)="deleteProject(project)">Delete</button>
+                </div>
+              </div>
             }
-          </mat-card>
+          </article>
         } @empty {
-          <p>No projects yet. Create one to get started.</p>
+          <p class="empty-state">No projects yet. Create one above to get started.</p>
         }
       </section>
     </main>
   `,
   styles: [`
     .dashboard-shell { display: grid; gap: 1.5rem; }
-    .hero h1 { margin-bottom: 0.35rem; }
-    .hero p { margin: 0; opacity: 0.75; }
+    .hero .eyebrow {
+      font-family: var(--cd-mono); font-size: 0.7rem; font-weight: 600;
+      letter-spacing: 0.1em; text-transform: uppercase; color: var(--cd-amber);
+      margin: 0 0 0.5rem;
+    }
+    .hero h1 { margin: 0 0 0.35rem; font-size: 1.6rem; }
+    .hero .subtitle { margin: 0; color: var(--cd-text-dim); }
     .create-panel form { display: grid; gap: 0.75rem; max-width: 640px; }
-    .project-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
-    .project-card { height: 100%; }
-    .loading-state { display: inline-flex; align-items: center; gap: 0.75rem; }
+    .project-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+    .card-inner { padding: 1.25rem; display: flex; flex-direction: column; gap: 0.6rem; height: 100%; box-sizing: border-box; }
+    .card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
+    .card-head h3 { margin: 0; font-size: 1rem; }
+    .card-date { font-family: var(--cd-mono); font-size: 0.7rem; color: var(--cd-text-faint); white-space: nowrap; }
+    .card-desc { margin: 0; color: var(--cd-text-dim); font-size: 0.875rem; flex: 1; }
+    .card-actions { display: flex; gap: 0.25rem; margin-top: 0.25rem; }
+    .loading-state { display: inline-flex; align-items: center; gap: 0.75rem; color: var(--cd-text-dim); }
     .edit-form { display: grid; gap: 0.75rem; }
     .edit-actions { display: flex; gap: 0.5rem; }
-    .delete-btn { color: #b3261e; }
+    .delete-btn { color: var(--cd-red); }
+    .empty-state { color: var(--cd-text-dim); }
   `]
 })
 export class ProjectListComponent implements OnInit {

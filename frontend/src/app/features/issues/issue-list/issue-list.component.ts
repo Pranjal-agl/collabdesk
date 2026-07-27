@@ -34,7 +34,7 @@ import { Issue, Priority } from '../../../core/models/issue.model';
       {{ liveMessage() }}
     </div>
 
-    <section class="create-panel" aria-label="Create issue">
+    <section class="panel create-panel enter" aria-label="Create issue">
       <form [formGroup]="createForm" (ngSubmit)="createIssue()">
         <mat-form-field appearance="outline" class="title-field">
           <mat-label>New issue title</mat-label>
@@ -57,51 +57,63 @@ import { Issue, Priority } from '../../../core/models/issue.model';
     </section>
 
     @if (issueService.loading()) {
-      <div role="status" aria-label="Loading issues">
+      <div role="status" aria-label="Loading issues" class="loading-state">
         <p>Loading issues…</p>
       </div>
     }
 
-    <ul role="list" aria-label="Issue list">
+    <ul role="list" aria-label="Issue list" class="ticket-list">
       @for (issue of issueService.issues(); track issue.id) {
         <li role="listitem">
-          <article>
-            <h3>{{ issue.title }}</h3>
-            <span [attr.aria-label]="'Status: ' + issue.status">{{ issue.status }}</span>
-            <span [attr.aria-label]="'Priority: ' + issue.priority">{{ issue.priority }}</span>
-
-            <button
-              (click)="markDone(issue)"
-              [attr.aria-label]="'Mark issue ' + issue.title + ' as done'"
-              [disabled]="issue.status === 'DONE'">
-              Mark done
-            </button>
-            <a [routerLink]="['/projects', projectId(), 'issues', issue.id]"
-               [attr.aria-label]="'Open details for issue ' + issue.title">
-              Details
-            </a>
-            <button
-              (click)="deleteIssue(issue)"
-              [attr.aria-label]="'Delete issue ' + issue.title"
-              class="delete-btn">
-              Delete
-            </button>
+          <article class="ticket enter">
+            <div class="ticket-stub" [ngClass]="'stub-' + issue.priority.toLowerCase()">
+              {{ issue.priority }}
+            </div>
+            <div class="ticket-body">
+              <h3>{{ issue.title }}</h3>
+              <div class="ticket-meta">
+                <span class="badge" [class.badge-done]="issue.status === 'DONE'"
+                      [attr.aria-label]="'Status: ' + issue.status">{{ issue.status }}</span>
+              </div>
+              <div class="ticket-actions">
+                <button
+                  mat-button
+                  (click)="markDone(issue)"
+                  [attr.aria-label]="'Mark issue ' + issue.title + ' as done'"
+                  [disabled]="issue.status === 'DONE'">
+                  Mark done
+                </button>
+                <a mat-button [routerLink]="['/projects', projectId(), 'issues', issue.id]"
+                   [attr.aria-label]="'Open details for issue ' + issue.title">
+                  Details
+                </a>
+                <button
+                  mat-button
+                  (click)="deleteIssue(issue)"
+                  [attr.aria-label]="'Delete issue ' + issue.title"
+                  class="delete-btn">
+                  Delete
+                </button>
+              </div>
+            </div>
           </article>
         </li>
       } @empty {
-        <li><p>No issues yet. Add one above to get started.</p></li>
+        <li><p class="empty-state">No issues yet. Add one above to get started.</p></li>
       }
     </ul>
   `,
   styles: [`
-    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
-    .create-panel form { display: flex; gap: 0.75rem; align-items: flex-start; flex-wrap: wrap; margin-bottom: 1.25rem; }
+    .create-panel form { display: flex; gap: 0.75rem; align-items: flex-start; flex-wrap: wrap; margin-bottom: 0; }
     .title-field { flex: 2; min-width: 220px; }
     .priority-field { flex: 1; min-width: 140px; }
-    ul { list-style: none; padding: 0; display: grid; gap: 0.75rem; }
-    article { border: 1px solid rgba(0,0,0,0.12); border-radius: 0.6rem; padding: 0.75rem 1rem; display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
-    article h3 { margin: 0; flex: 1; min-width: 160px; }
-    .delete-btn { color: #b3261e; }
+    .loading-state { color: var(--cd-text-dim); margin: 1rem 0; }
+    .ticket-list { list-style: none; padding: 0; margin: 1.25rem 0 0; display: grid; gap: 0.75rem; }
+    .ticket-body h3 { margin: 0 0 0.5rem; font-size: 0.95rem; font-family: var(--cd-sans); font-weight: 600; }
+    .ticket-meta { margin-bottom: 0.4rem; }
+    .ticket-actions { display: flex; gap: 0.25rem; flex-wrap: wrap; }
+    .delete-btn { color: var(--cd-red); }
+    .empty-state { color: var(--cd-text-dim); }
   `]
 })
 export class IssueListComponent implements OnInit, OnDestroy {

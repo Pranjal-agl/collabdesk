@@ -1,45 +1,170 @@
+/* styles.scss — CollabDesk "Night Shift" design system
+   Concept: an ops board / logbook for engineering teams. Graphite surfaces,
+   a warm signal-amber for priority & attention, a cool signal-teal for
+   status & live presence. Issue keys and headings set in mono to read like
+   ticket stamps; body copy in a humanist sans for long-form comments. */
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600;700&family=Public+Sans:wght@400;500;600;700&display=swap');
+
 :root {
-  color-scheme: light;
+  --cd-bg: #12141a;
+  --cd-surface: #1b1e27;
+  --cd-surface-raised: #232733;
+  --cd-border: rgba(255, 255, 255, 0.08);
+  --cd-border-strong: rgba(255, 255, 255, 0.16);
+
+  --cd-text: #e8e9ed;
+  --cd-text-dim: #8b8fa3;
+  --cd-text-faint: #5b5f70;
+
+  --cd-amber: #ffb454;
+  --cd-amber-dim: rgba(255, 180, 84, 0.16);
+  --cd-teal: #4fd1c5;
+  --cd-teal-dim: rgba(79, 209, 197, 0.16);
+  --cd-red: #ff6b6b;
+  --cd-red-dim: rgba(255, 107, 107, 0.14);
+
+  --cd-radius: 10px;
+  --cd-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --cd-sans: 'Public Sans', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 html, body {
   margin: 0;
   min-height: 100%;
-  font-family: Arial, Helvetica, sans-serif;
-  background: #f5f7fb;
-  color: #172033;
+  background: var(--cd-bg);
+  color: var(--cd-text);
+  font-family: var(--cd-sans);
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
 }
 
-a {
-  color: inherit;
+h1, h2, h3, h4 {
+  font-family: var(--cd-mono);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--cd-text);
 }
 
-button, input, textarea {
-  font: inherit;
-}
+a { color: var(--cd-teal); }
 
-/* Visually-hidden but screen-reader-readable content (used for aria-live regions
-   that shouldn't take up layout space, e.g. issue-list/comment-thread updates). */
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
+/* ===== Ticket stub — the signature element =====
+   Issues are literally tickets. A left "stub" carries the priority stamp,
+   separated from the body by a perforation, with a die-cut notch at the
+   seam — like a torn job card on a logbook. */
+.ticket {
+  position: relative;
+  display: flex;
+  background: var(--cd-surface);
+  border: 1px solid var(--cd-border);
+  border-radius: var(--cd-radius);
   overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.ticket:hover {
+  border-color: var(--cd-border-strong);
+}
+.ticket-stub {
+  flex: 0 0 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--cd-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  writing-mode: vertical-lr;
+  position: relative;
+  border-right: 1px dashed var(--cd-border-strong);
+}
+.ticket-stub::before,
+.ticket-stub::after {
+  content: '';
+  position: absolute;
+  right: -5px;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--cd-bg);
+  border: 1px solid var(--cd-border-strong);
+}
+.ticket-stub::before { top: -5px; }
+.ticket-stub::after { bottom: -5px; }
+.ticket-body { flex: 1; padding: 1rem 1.25rem; min-width: 0; }
+
+.stub-low     { color: var(--cd-text-dim); }
+.stub-medium  { color: var(--cd-teal); background: var(--cd-teal-dim); }
+.stub-high    { color: var(--cd-amber); background: var(--cd-amber-dim); }
+.stub-urgent  { color: var(--cd-red); background: var(--cd-red-dim); }
+
+/* ===== Badges ===== */
+.badge {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  font-family: var(--cd-mono); font-size: 0.7rem; font-weight: 600;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 0.2rem 0.55rem; border-radius: 999px;
+  border: 1px solid var(--cd-border-strong);
+  color: var(--cd-text-dim);
+}
+.badge-done { color: var(--cd-teal); border-color: rgba(79,209,197,0.4); }
+.badge-live::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--cd-teal); box-shadow: 0 0 0 3px var(--cd-teal-dim);
 }
 
-/* Anyone with prefers-reduced-motion set gets near-instant transitions instead
-   of the app silently ignoring the setting. This is global rather than
-   per-component so it also covers Angular Material's built-in animations. */
+/* ===== Panels & cards ===== */
+.panel {
+  background: var(--cd-surface);
+  border: 1px solid var(--cd-border);
+  border-radius: var(--cd-radius);
+  padding: 1.25rem;
+}
+.card-raised {
+  background: var(--cd-surface-raised);
+  border: 1px solid var(--cd-border);
+  border-radius: var(--cd-radius);
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+.card-raised:hover {
+  transform: translateY(-2px);
+  border-color: var(--cd-border-strong);
+}
+
+/* ===== Motion ===== */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.enter { animation: fade-up 0.35s ease both; }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
-    scroll-behavior: auto !important;
   }
 }
+
+/* ===== Scrollbar ===== */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--cd-text-faint); border-radius: 4px; }
+
+/* ===== Material overrides: dark, quiet chrome ===== */
+.mat-mdc-form-field { --mdc-outlined-text-field-outline-color: var(--cd-border-strong); }
+.mdc-text-field--outlined:not(.mdc-text-field--disabled) .mdc-notched-outline__leading,
+.mdc-text-field--outlined:not(.mdc-text-field--disabled) .mdc-notched-outline__notch,
+.mdc-text-field--outlined:not(.mdc-text-field--disabled) .mdc-notched-outline__trailing {
+  border-color: var(--cd-border-strong);
+}
+input.mat-mdc-input-element, .mat-mdc-form-field, .mat-mdc-select-value, textarea.mat-mdc-input-element {
+  color: var(--cd-text);
+  caret-color: var(--cd-amber);
+}
+.mat-mdc-form-field-label, .mdc-floating-label { color: var(--cd-text-dim) !important; }
+.mat-mdc-card { background: var(--cd-surface-raised); color: var(--cd-text); }
