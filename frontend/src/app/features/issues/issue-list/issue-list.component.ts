@@ -107,13 +107,13 @@ import { Issue, Priority } from '../../../core/models/issue.model';
     .create-panel form { display: flex; gap: 0.75rem; align-items: flex-start; flex-wrap: wrap; margin-bottom: 0; }
     .title-field { flex: 2; min-width: 220px; }
     .priority-field { flex: 1; min-width: 140px; }
-    .loading-state { color: var(--cd-text-dim); margin: 1rem 0; }
+    .loading-state { color: var(--text-muted); margin: 1rem 0; }
     .ticket-list { list-style: none; padding: 0; margin: 1.25rem 0 0; display: grid; gap: 0.75rem; }
-    .ticket-body h3 { margin: 0 0 0.5rem; font-size: 0.95rem; font-family: var(--cd-sans); font-weight: 600; }
+    .ticket-body h3 { margin: 0 0 0.5rem; font-size: 0.95rem; font-family: 'Syne', sans-serif; font-weight: 700; }
     .ticket-meta { margin-bottom: 0.4rem; }
     .ticket-actions { display: flex; gap: 0.25rem; flex-wrap: wrap; }
-    .delete-btn { color: var(--cd-red); }
-    .empty-state { color: var(--cd-text-dim); }
+    .delete-btn { color: var(--error); }
+    .empty-state { color: var(--text-muted); }
   `]
 })
 export class IssueListComponent implements OnInit, OnDestroy {

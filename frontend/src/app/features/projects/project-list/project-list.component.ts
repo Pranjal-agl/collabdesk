@@ -30,8 +30,9 @@ import { Project } from '../../../core/models/project.model';
   template: `
     <main class="dashboard-shell">
       <header class="hero enter">
-        <p class="eyebrow">Ops board</p>
-        <h1>Project dashboard</h1>
+        <p class="eyebrow">projects</p>
+        <h1 class="glow">Project dashboard</h1>
+        <hr class="accent-line" />
         <p class="subtitle">Spin up a workspace and jump straight into your issue board.</p>
       </header>
 
@@ -105,26 +106,22 @@ import { Project } from '../../../core/models/project.model';
   `,
   styles: [`
     .dashboard-shell { display: grid; gap: 1.5rem; }
-    .hero .eyebrow {
-      font-family: var(--cd-mono); font-size: 0.7rem; font-weight: 600;
-      letter-spacing: 0.1em; text-transform: uppercase; color: var(--cd-amber);
-      margin: 0 0 0.5rem;
-    }
-    .hero h1 { margin: 0 0 0.35rem; font-size: 1.6rem; }
-    .hero .subtitle { margin: 0; color: var(--cd-text-dim); }
+    .hero h1 { margin: 0 0 0.5rem; font-size: 1.8rem; }
+    .hero .accent-line { width: 60px; margin: 0 0 0.75rem; }
+    .hero .subtitle { margin: 0; color: var(--text-muted); }
     .create-panel form { display: grid; gap: 0.75rem; max-width: 640px; }
     .project-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
     .card-inner { padding: 1.25rem; display: flex; flex-direction: column; gap: 0.6rem; height: 100%; box-sizing: border-box; }
     .card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
     .card-head h3 { margin: 0; font-size: 1rem; }
-    .card-date { font-family: var(--cd-mono); font-size: 0.7rem; color: var(--cd-text-faint); white-space: nowrap; }
-    .card-desc { margin: 0; color: var(--cd-text-dim); font-size: 0.875rem; flex: 1; }
+    .card-date { font-family: 'Space Mono', monospace; font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; }
+    .card-desc { margin: 0; color: var(--text-muted); font-size: 0.875rem; flex: 1; }
     .card-actions { display: flex; gap: 0.25rem; margin-top: 0.25rem; }
-    .loading-state { display: inline-flex; align-items: center; gap: 0.75rem; color: var(--cd-text-dim); }
+    .loading-state { display: inline-flex; align-items: center; gap: 0.75rem; color: var(--text-muted); }
     .edit-form { display: grid; gap: 0.75rem; }
     .edit-actions { display: flex; gap: 0.5rem; }
-    .delete-btn { color: var(--cd-red); }
-    .empty-state { color: var(--cd-text-dim); }
+    .delete-btn { color: var(--error); }
+    .empty-state { color: var(--text-muted); }
   `]
 })
 export class ProjectListComponent implements OnInit {

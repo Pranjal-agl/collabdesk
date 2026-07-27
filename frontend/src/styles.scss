@@ -1,141 +1,134 @@
-/* styles.scss — CollabDesk "Night Shift" design system
-   Concept: an ops board / logbook for engineering teams. Graphite surfaces,
-   a warm signal-amber for priority & attention, a cool signal-teal for
-   status & live presence. Issue keys and headings set in mono to read like
-   ticket stamps; body copy in a humanist sans for long-form comments. */
+/* styles.scss — CollabDesk, matching Pranjal's personal brand:
+   terminal/hacker aesthetic, near-black bg, acid-green + blue accents,
+   Space Mono for commands/labels, Syne for display type, subtle grain. */
 
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600;700&family=Public+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap');
 
 :root {
-  --cd-bg: #12141a;
-  --cd-surface: #1b1e27;
-  --cd-surface-raised: #232733;
-  --cd-border: rgba(255, 255, 255, 0.08);
-  --cd-border-strong: rgba(255, 255, 255, 0.16);
-
-  --cd-text: #e8e9ed;
-  --cd-text-dim: #8b8fa3;
-  --cd-text-faint: #5b5f70;
-
-  --cd-amber: #ffb454;
-  --cd-amber-dim: rgba(255, 180, 84, 0.16);
-  --cd-teal: #4fd1c5;
-  --cd-teal-dim: rgba(79, 209, 197, 0.16);
-  --cd-red: #ff6b6b;
-  --cd-red-dim: rgba(255, 107, 107, 0.14);
-
-  --cd-radius: 10px;
-  --cd-mono: 'IBM Plex Mono', ui-monospace, monospace;
-  --cd-sans: 'Public Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --bg: #0a0a0a;
+  --bg-2: #111111;
+  --bg-3: #1a1a1a;
+  --border: #222222;
+  --border-strong: #333333;
+  --text: #e8e8e8;
+  --text-muted: #666666;
+  --accent: #00ff88;
+  --accent-2: #0066ff;
+  --accent-dim: rgba(0, 255, 136, 0.08);
+  --accent-2-dim: rgba(0, 102, 255, 0.1);
+  --error: #ff4d4d;
+  --error-dim: rgba(255, 77, 77, 0.1);
 }
+
+* { box-sizing: border-box; }
 
 html, body {
   margin: 0;
   min-height: 100%;
-  background: var(--cd-bg);
-  color: var(--cd-text);
-  font-family: var(--cd-sans);
-  font-size: 15px;
-  -webkit-font-smoothing: antialiased;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Syne', sans-serif;
 }
 
-h1, h2, h3, h4 {
-  font-family: var(--cd-mono);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--cd-text);
+h1, h2, h3, h4 { font-family: 'Syne', sans-serif; font-weight: 700; letter-spacing: -0.02em; margin: 0; }
+
+a { color: var(--accent); }
+
+.mono { font-family: 'Space Mono', monospace; }
+
+.eyebrow {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 0.5rem;
+}
+.eyebrow::before { content: '$ '; color: var(--text-muted); }
+
+.glow { text-shadow: 0 0 30px rgba(0, 255, 136, 0.35); }
+
+.accent-line {
+  height: 1px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2), transparent);
+  border: none;
 }
 
-a { color: var(--cd-teal); }
+/* subtle grain overlay, same recipe as the portfolio */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 1000;
+  opacity: 0.4;
+}
 
-/* ===== Ticket stub — the signature element =====
-   Issues are literally tickets. A left "stub" carries the priority stamp,
-   separated from the body by a perforation, with a die-cut notch at the
-   seam — like a torn job card on a logbook. */
+::selection { background: var(--accent); color: var(--bg); }
+
+/* ===== Ticket stub — issues as job tickets, recolored to the brand ===== */
 .ticket {
   position: relative;
   display: flex;
-  background: var(--cd-surface);
-  border: 1px solid var(--cd-border);
-  border-radius: var(--cd-radius);
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
   overflow: hidden;
-  transition: border-color 0.15s ease, transform 0.15s ease;
+  transition: border-color 0.15s ease;
 }
-.ticket:hover {
-  border-color: var(--cd-border-strong);
-}
+.ticket:hover { border-color: var(--border-strong); }
 .ticket-stub {
-  flex: 0 0 64px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--cd-mono);
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  flex: 0 0 60px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.65rem; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
   writing-mode: vertical-lr;
-  position: relative;
-  border-right: 1px dashed var(--cd-border-strong);
+  border-right: 1px dashed var(--border-strong);
 }
-.ticket-stub::before,
-.ticket-stub::after {
-  content: '';
-  position: absolute;
-  right: -5px;
-  width: 10px; height: 10px;
-  border-radius: 50%;
-  background: var(--cd-bg);
-  border: 1px solid var(--cd-border-strong);
-}
-.ticket-stub::before { top: -5px; }
-.ticket-stub::after { bottom: -5px; }
+.stub-low     { color: var(--text-muted); }
+.stub-medium  { color: var(--accent-2); background: var(--accent-2-dim); }
+.stub-high    { color: var(--accent); background: var(--accent-dim); }
+.stub-urgent  { color: var(--error); background: var(--error-dim); }
 .ticket-body { flex: 1; padding: 1rem 1.25rem; min-width: 0; }
-
-.stub-low     { color: var(--cd-text-dim); }
-.stub-medium  { color: var(--cd-teal); background: var(--cd-teal-dim); }
-.stub-high    { color: var(--cd-amber); background: var(--cd-amber-dim); }
-.stub-urgent  { color: var(--cd-red); background: var(--cd-red-dim); }
 
 /* ===== Badges ===== */
 .badge {
   display: inline-flex; align-items: center; gap: 0.35rem;
-  font-family: var(--cd-mono); font-size: 0.7rem; font-weight: 600;
+  font-family: 'Space Mono', monospace; font-size: 0.68rem; font-weight: 700;
   letter-spacing: 0.04em; text-transform: uppercase;
   padding: 0.2rem 0.55rem; border-radius: 999px;
-  border: 1px solid var(--cd-border-strong);
-  color: var(--cd-text-dim);
+  border: 1px solid var(--border-strong);
+  color: var(--text-muted);
 }
-.badge-done { color: var(--cd-teal); border-color: rgba(79,209,197,0.4); }
+.badge-done { color: var(--accent); border-color: rgba(0,255,136,0.35); }
 .badge-live::before {
   content: ''; width: 6px; height: 6px; border-radius: 50%;
-  background: var(--cd-teal); box-shadow: 0 0 0 3px var(--cd-teal-dim);
+  background: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim);
 }
 
 /* ===== Panels & cards ===== */
 .panel {
-  background: var(--cd-surface);
-  border: 1px solid var(--cd-border);
-  border-radius: var(--cd-radius);
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
   padding: 1.25rem;
 }
 .card-raised {
-  background: var(--cd-surface-raised);
-  border: 1px solid var(--cd-border);
-  border-radius: var(--cd-radius);
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
   transition: transform 0.15s ease, border-color 0.15s ease;
 }
-.card-raised:hover {
-  transform: translateY(-2px);
-  border-color: var(--cd-border-strong);
-}
+.card-raised:hover { transform: translateY(-2px); border-color: var(--accent); }
 
-/* ===== Motion ===== */
 @keyframes fade-up {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.enter { animation: fade-up 0.35s ease both; }
+.enter { animation: fade-up 0.4s ease both; }
 
 .sr-only {
   position: absolute; width: 1px; height: 1px;
@@ -150,21 +143,52 @@ a { color: var(--cd-teal); }
   }
 }
 
-/* ===== Scrollbar ===== */
-::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--cd-text-faint); border-radius: 4px; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
 
-/* ===== Material overrides: dark, quiet chrome ===== */
-.mat-mdc-form-field { --mdc-outlined-text-field-outline-color: var(--cd-border-strong); }
-.mdc-text-field--outlined:not(.mdc-text-field--disabled) .mdc-notched-outline__leading,
-.mdc-text-field--outlined:not(.mdc-text-field--disabled) .mdc-notched-outline__notch,
-.mdc-text-field--outlined:not(.mdc-text-field--disabled) .mdc-notched-outline__trailing {
-  border-color: var(--cd-border-strong);
+/* =====================================================================
+   Material overrides — the previous pass fixed too few selectors, which
+   is why input text stayed black-on-black. MDC reads these CSS custom
+   properties directly, so set them at :root (highest priority, no
+   specificity fights), then also force `color` on the raw elements as a
+   belt-and-braces fallback.
+   ===================================================================== */
+:root {
+  --mdc-outlined-text-field-input-text-color: var(--text);
+  --mdc-outlined-text-field-label-text-color: var(--text-muted);
+  --mdc-outlined-text-field-outline-color: var(--border-strong);
+  --mdc-outlined-text-field-hover-outline-color: var(--accent-2);
+  --mdc-outlined-text-field-focus-outline-color: var(--accent);
+  --mdc-outlined-text-field-focus-label-text-color: var(--accent);
+  --mdc-outlined-text-field-caret-color: var(--accent);
+  --mdc-outlined-text-field-container-color: var(--bg-2);
+  --mdc-outlined-text-field-disabled-input-text-color: var(--text-muted);
+  --mat-select-panel-background-color: var(--bg-3);
+  --mat-select-enabled-trigger-text-color: var(--text);
+  --mat-option-selected-state-label-text-color: var(--accent);
+  --mat-form-field-container-text-color: var(--text);
+  --mdc-filled-button-container-color: var(--accent);
+  --mdc-filled-button-label-text-color: var(--bg);
+  --mdc-protected-button-container-color: var(--accent);
+  --mdc-protected-button-label-text-color: var(--bg);
+  --mat-text-button-state-layer-color: var(--accent);
+  --mat-text-button-with-icon-icon-color: var(--accent);
+  --mdc-circular-progress-active-indicator-color: var(--accent);
 }
-input.mat-mdc-input-element, .mat-mdc-form-field, .mat-mdc-select-value, textarea.mat-mdc-input-element {
-  color: var(--cd-text);
-  caret-color: var(--cd-amber);
+
+.mat-mdc-form-field, .mat-mdc-text-field-wrapper, .mat-mdc-form-field-flex {
+  color: var(--text);
 }
-.mat-mdc-form-field-label, .mdc-floating-label { color: var(--cd-text-dim) !important; }
-.mat-mdc-card { background: var(--cd-surface-raised); color: var(--cd-text); }
+input.mat-mdc-input-element,
+textarea.mat-mdc-input-element,
+.mat-mdc-select-value-text {
+  color: var(--text) !important;
+  caret-color: var(--accent) !important;
+}
+.mat-mdc-select-arrow { color: var(--text-muted) !important; }
+.mat-mdc-card { background: var(--bg-2); color: var(--text); }
+.mat-mdc-menu-panel, .mat-mdc-select-panel { background: var(--bg-3) !important; }
+.mat-mdc-option { color: var(--text) !important; }
+.mat-mdc-snack-bar-container { --mdc-snackbar-container-color: var(--bg-3); --mdc-snackbar-supporting-text-color: var(--text); }

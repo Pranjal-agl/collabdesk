@@ -19,8 +19,9 @@ import { AuthService } from '../../../core/services/auth.service';
   template: `
     <main class="login-wrapper" role="main">
       <div class="login-panel panel enter">
-        <p class="eyebrow">Clock in</p>
-        <h1 id="login-heading">Sign in to CollabDesk</h1>
+        <p class="eyebrow">login</p>
+        <h1 id="login-heading" class="glow">Sign in to <span class="accent">CollabDesk</span></h1>
+        <hr class="accent-line" />
 
         <form [formGroup]="form" (ngSubmit)="submit()" aria-labelledby="login-heading">
 
@@ -41,12 +42,12 @@ import { AuthService } from '../../../core/services/auth.service';
 
           @if (errorMessage()) {
             <!-- aria-live region: screen readers announce errors without focus change -->
-            <p role="alert" aria-live="assertive" class="error-message">
+            <p role="alert" aria-live="assertive" class="error-message mono">
               {{ errorMessage() }}
             </p>
           }
 
-          <button mat-raised-button color="primary" type="submit"
+          <button mat-flat-button color="primary" type="submit"
                   [disabled]="form.invalid || loading()">
             @if (loading()) {
               <mat-spinner diameter="20"/>
@@ -60,14 +61,12 @@ import { AuthService } from '../../../core/services/auth.service';
   `,
   styles: [`
     .login-wrapper { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-    .login-panel { width: 100%; max-width: 380px; padding: 2rem; display: flex; flex-direction: column; gap: 0.25rem; }
-    .eyebrow {
-      font-family: var(--cd-mono); font-size: 0.7rem; font-weight: 600;
-      letter-spacing: 0.1em; text-transform: uppercase; color: var(--cd-amber); margin: 0;
-    }
-    .login-panel h1 { font-size: 1.3rem; margin: 0 0 1.25rem; }
+    .login-panel { width: 100%; max-width: 380px; padding: 2rem; display: flex; flex-direction: column; gap: 0.9rem; }
+    .login-panel h1 { font-size: 1.35rem; margin: 0; }
+    .login-panel h1 .accent { color: var(--accent); }
+    .accent-line { width: 60px; margin: 0.25rem 0 0.5rem; }
     form { display: flex; flex-direction: column; gap: 1rem; }
-    .error-message { color: var(--cd-red); font-size: 14px; margin: 0; }
+    .error-message { color: var(--error); font-size: 0.8rem; margin: 0; }
   `]
 })
 export class LoginComponent {

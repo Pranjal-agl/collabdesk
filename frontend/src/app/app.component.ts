@@ -11,24 +11,25 @@ import { AuthService } from './core/services/auth.service';
   template: `
     <a href="#main-content" class="skip-link">Skip to main content</a>
 
+    <div class="grid-backdrop" aria-hidden="true"></div>
+
     <div class="shell">
       <header class="rail" role="banner">
-        <a routerLink="/projects" class="rail-brand" aria-label="CollabDesk home">
-          <span class="rail-mark">CD</span>
-          <span class="rail-name">Collab<br/>Desk</span>
+        <a routerLink="/projects" class="rail-brand mono" aria-label="CollabDesk home">
+          CD<span class="cursor">_</span>
         </a>
 
         <nav aria-label="Main navigation" class="rail-nav">
-          <a routerLink="/projects" class="rail-link">Projects</a>
+          <a routerLink="/projects" class="rail-link mono">projects</a>
           @if (auth.currentUser()?.role === 'ADMIN') {
-            <a routerLink="/admin/audit-log" class="rail-link">Audit log</a>
+            <a routerLink="/admin/audit-log" class="rail-link mono">audit_log</a>
           }
         </nav>
 
         @if (auth.isAuthenticated()) {
           <div class="rail-user">
-            <span class="badge badge-live">On shift</span>
-            <button (click)="auth.logout()" class="rail-signout" aria-label="Sign out">Sign out</button>
+            <span class="badge badge-live">online</span>
+            <button (click)="auth.logout()" class="rail-signout mono" aria-label="Sign out">sign_out</button>
           </div>
         }
       </header>
@@ -39,70 +40,55 @@ import { AuthService } from './core/services/auth.service';
     </div>
   `,
   styles: [`
-    .shell {
-      display: grid;
-      grid-template-columns: 200px 1fr;
-      min-height: 100vh;
+    .grid-backdrop {
+      position: fixed; inset: 0; z-index: -1; pointer-events: none;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 60px 60px;
+      opacity: 0.3;
     }
+    .shell { display: grid; grid-template-columns: 190px 1fr; min-height: 100vh; }
     .rail {
-      background: var(--cd-surface);
-      border-right: 1px solid var(--cd-border);
+      background: rgba(10,10,10,0.85);
+      backdrop-filter: blur(8px);
+      border-right: 1px solid var(--border);
       padding: 1.5rem 1rem;
-      display: flex;
-      flex-direction: column;
-      gap: 2rem;
-      position: sticky;
-      top: 0;
-      height: 100vh;
+      display: flex; flex-direction: column; gap: 2.5rem;
+      position: sticky; top: 0; height: 100vh;
     }
     .rail-brand {
-      display: flex; align-items: center; gap: 0.6rem;
-      text-decoration: none; color: var(--cd-text);
+      font-size: 1.1rem; font-weight: 700; letter-spacing: 0.02em;
+      color: var(--accent); text-decoration: none;
     }
-    .rail-mark {
-      font-family: var(--cd-mono); font-weight: 700; font-size: 0.75rem;
-      width: 32px; height: 32px; border-radius: 8px;
-      display: flex; align-items: center; justify-content: center;
-      background: var(--cd-amber-dim); color: var(--cd-amber);
-      border: 1px solid rgba(255,180,84,0.35);
-    }
-    .rail-name {
-      font-family: var(--cd-mono); font-weight: 600; font-size: 0.8rem;
-      line-height: 1.1; letter-spacing: 0.01em;
-    }
+    .rail-brand .cursor { color: var(--text-muted); animation: blink 1.1s step-end infinite; }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
     .rail-nav { display: flex; flex-direction: column; gap: 0.25rem; flex: 1; }
     .rail-link {
-      padding: 0.5rem 0.6rem; border-radius: 8px;
-      text-decoration: none; color: var(--cd-text-dim);
-      font-size: 0.875rem; font-weight: 500;
+      padding: 0.5rem 0.6rem; border-radius: 4px;
+      text-decoration: none; color: var(--text-muted);
+      font-size: 0.75rem; text-transform: lowercase; letter-spacing: 0.04em;
       border-left: 2px solid transparent;
-      transition: color 0.15s, background 0.15s, border-color 0.15s;
+      transition: color 0.15s, border-color 0.15s;
     }
-    .rail-link:hover {
-      color: var(--cd-text); background: var(--cd-surface-raised);
-      border-left-color: var(--cd-amber);
-    }
-    .rail-user {
-      display: flex; flex-direction: column; gap: 0.6rem;
-      padding-top: 1rem; border-top: 1px solid var(--cd-border);
-    }
-    .rail-signout {
-      background: transparent; border: 1px solid var(--cd-border-strong);
-      color: var(--cd-text-dim); border-radius: 8px;
-      padding: 0.45rem 0.6rem; font-size: 0.8rem; cursor: pointer;
-      transition: all 0.15s;
-    }
-    .rail-signout:hover { color: var(--cd-red); border-color: rgba(255,107,107,0.4); }
+    .rail-link:hover { color: var(--accent); border-left-color: var(--accent); }
 
-    .app-main {
-      padding: 2rem 2.5rem;
-      max-width: 1100px;
+    .rail-user { display: flex; flex-direction: column; gap: 0.75rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+    .rail-signout {
+      background: transparent; border: 1px solid var(--border-strong);
+      color: var(--text-muted); border-radius: 4px;
+      padding: 0.4rem 0.5rem; font-size: 0.7rem; cursor: pointer;
+      text-align: left; transition: all 0.15s;
     }
+    .rail-signout:hover { color: var(--error); border-color: var(--error); }
+
+    .app-main { padding: 2rem 2.5rem; max-width: 1100px; }
 
     .skip-link {
       position: absolute; top: -40px; left: 0;
-      background: var(--cd-amber); color: #12141a; padding: 8px 16px; z-index: 9999;
-      transition: top 0.2s; text-decoration: none; font-weight: 600;
+      background: var(--accent); color: var(--bg); padding: 8px 16px; z-index: 9999;
+      transition: top 0.2s; text-decoration: none; font-weight: 700;
     }
     .skip-link:focus { top: 0; }
 
