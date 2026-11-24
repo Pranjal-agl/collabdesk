@@ -19,6 +19,7 @@ import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.util.StringUtils;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
@@ -50,8 +51,17 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        // Client subscribes to /topic/... for broadcasts
-        registry.enableSimpleBroker("/topic");
+        // Client subscribes to /topic/... for broadcasts. Heartbeats every 20s
+        // keep the socket alive through hosting proxies (e.g. Render) that
+        // close connections which look idle, and let both ends notice a dead
+        // connection instead of waiting on a half-open TCP socket.
+        ThreadPoolTaskScheduler heartbeats = new ThreadPoolTaskScheduler();
+        heartbeats.setPoolSize(1);
+        heartbeats.setThreadNamePrefix("ws-heartbeat-");
+        heartbeats.initialize();
+        registry.enableSimpleBroker("/topic")
+                .setHeartbeatValue(new long[] {20_000, 20_000})
+                .setTaskScheduler(heartbeats);
         // Client sends to /app/... for server-side handlers
         registry.setApplicationDestinationPrefixes("/app");
     }

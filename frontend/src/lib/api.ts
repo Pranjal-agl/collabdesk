@@ -13,7 +13,7 @@ import {
   type UserSummary,
 } from './types';
 import { demoApi, demoSyncToken } from './demo';
-import { getAccessToken, getRefreshToken } from './session';
+import { getAccessToken, getRefreshToken, saveSession } from './session';
 
 const DEMO = import.meta.env.VITE_DEMO_MODE === 'true';
 
@@ -32,13 +32,47 @@ async function refreshTokens(): Promise<AuthResponse> {
     })
       .then(async (res) => {
         if (!res.ok) throw new ApiError(res.status, 'Session expired');
-        return (await res.json()) as AuthResponse;
+        const rotated = (await res.json()) as AuthResponse;
+        // Save here, inside the single flight, so every caller (HTTP retries
+        // and the WebSocket client) sees the new pair and nobody reuses the
+        // old refresh token — reuse would trip the backend's theft detection.
+        saveSession(rotated);
+        return rotated;
       })
       .finally(() => {
         refreshInFlight = null;
       });
   }
   return refreshInFlight;
+}
+
+/** Seconds until the stored access token expires (negative if expired, null if unreadable). */
+function secondsLeft(token: string): number | null {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return typeof payload.exp === 'number' ? payload.exp - Date.now() / 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * An access token that is good for at least another minute, refreshing it
+ * through the shared single-flight if needed. Used by the WebSocket client:
+ * STOMP sends the token once on CONNECT, so a stale one means the socket is
+ * refused (and, before, silently connected with no identity).
+ */
+export async function freshAccessToken(force = false): Promise<string | null> {
+  const token = getAccessToken();
+  if (!token) return null;
+  if (DEMO) return token;
+  const left = secondsLeft(token);
+  if (!force && (left === null || left > 60)) return token;
+  try {
+    return (await refreshTokens()).accessToken;
+  } catch {
+    return null;
+  }
 }
 
 class HttpApi implements Api {

@@ -125,7 +125,7 @@ export function Layout() {
 
 function ConnectionStatus({ state }: { state: WsState }) {
   const live = state === 'CONNECTED';
-  const label = live ? 'Live' : state === 'CONNECTING' ? 'Reconnecting' : 'Offline';
+  const label = live ? 'Live' : state === 'CONNECTING' ? 'Connecting' : 'Offline';
   return (
     <span role="status" className="flex items-center gap-2 text-sm text-graphite" title={live ? 'Changes from teammates appear as they happen' : 'Trying to reach the server — your edits are still saved'}>
       <span className={cn('h-2 w-2 rounded-full', live ? 'bg-person-moss' : 'animate-blink bg-alarm')} aria-hidden="true" />
