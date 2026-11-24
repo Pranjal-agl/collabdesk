@@ -1,24 +1,31 @@
-// Project dashboard: stats, create flow, and a staggered card grid.
+// Projects: one ledger sheet, a row per project with its status strip, plus
+// an inline create row.
 
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { FolderKanban, Plus, ArrowUpRight } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../lib/api';
-import type { Issue, Project } from '../lib/types';
-import { timeAgo } from '../lib/utils';
+import { BOARD_STATUSES, type IssueStatus, type Project } from '../lib/types';
+import { cn, STATUS_FILL, STATUS_LABEL, timeAgo } from '../lib/utils';
 import { useAuth } from '../lib/auth';
-import { Avatar, Button, EmptyState, Eyebrow, Input, Magnetic, Skeleton, Stat, Textarea } from '../components/ui';
+import { Button, EmptyState, Input, Label, Skeleton } from '../components/ui';
+import { Odometer } from '../components/motion';
+
+type Tally = Record<IssueStatus, number>;
+const emptyTally = (): Tally => ({ TODO: 0, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 0, CANCELLED: 0 });
+const openCount = (tally: Tally) => tally.TODO + tally.IN_PROGRESS + tally.IN_REVIEW;
 
 export function Projects() {
   const { user } = useAuth();
   const [projects, setProjects] = useState<Project[] | null>(null);
-  const [issueCounts, setIssueCounts] = useState<Record<string, { open: number; done: number }>>({});
+  const [tallies, setTallies] = useState<Record<string, Tally>>({});
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [creating, setCreating] = useState(false);
+  const nameRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -27,21 +34,17 @@ export function Projects() {
         const list = await api.listProjects();
         if (cancelled) return;
         setProjects(list);
-        // Per-project issue counts: one parallel fetch per project, deduped.
-        const counts = await Promise.all(
+        const entries = await Promise.all(
           list.map(async (project) => {
             const page = await api.listIssues(project.id);
-            const tally = { open: 0, done: 0 };
-            for (const issue of page.content as Issue[]) {
-              if (issue.status === 'DONE' || issue.status === 'CANCELLED') tally.done++;
-              else tally.open++;
-            }
+            const tally = emptyTally();
+            for (const issue of page.content) tally[issue.status]++;
             return [project.id, tally] as const;
           }),
         );
-        if (!cancelled) setIssueCounts(Object.fromEntries(counts));
+        if (!cancelled) setTallies(Object.fromEntries(entries));
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Failed to load projects');
+        toast.error(err instanceof Error ? err.message : 'Couldn’t load projects');
         if (!cancelled) setProjects([]);
       }
     })();
@@ -50,154 +53,205 @@ export function Projects() {
     };
   }, []);
 
-  const totals = useMemo(() => {
-    const values = Object.values(issueCounts);
-    return {
-      projects: projects?.length ?? 0,
-      open: values.reduce((sum, value) => sum + value.open, 0),
-      done: values.reduce((sum, value) => sum + value.done, 0),
-    };
-  }, [projects, issueCounts]);
+  useEffect(() => {
+    if (showCreate) nameRef.current?.focus();
+  }, [showCreate]);
+
+  const openTotal = useMemo(() => Object.values(tallies).reduce((sum, tally) => sum + openCount(tally), 0), [tallies]);
 
   const create = async (event: FormEvent) => {
     event.preventDefault();
     setCreating(true);
     try {
       const project = await api.createProject({ name: name.trim(), description: description.trim() || undefined });
-      toast.success(`Project "${project.name}" created`);
+      toast.success(`Created ${project.name}`);
       setName('');
       setDescription('');
       setShowCreate(false);
       setProjects((current) => [project, ...(current ?? [])]);
+      setTallies((current) => ({ ...current, [project.id]: emptyTally() }));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Create failed');
+      toast.error(err instanceof Error ? err.message : 'Couldn’t create the project');
     } finally {
       setCreating(false);
     }
   };
 
   const remove = async (project: Project) => {
-    if (!confirm(`Delete "${project.name}" and all its issues?`)) return;
+    if (!confirm(`Delete ${project.name} and every issue in it? This can’t be undone.`)) return;
     try {
       await api.deleteProject(project.id);
       setProjects((current) => (current ?? []).filter((candidate) => candidate.id !== project.id));
-      toast.success('Project deleted');
+      toast.success(`Deleted ${project.name}`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Delete failed');
+      toast.error(err instanceof Error ? err.message : 'Couldn’t delete the project');
     }
   };
 
   return (
     <div className="flex flex-col gap-8">
-      <header className="flex flex-wrap items-end justify-between gap-4">
+      <header className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
         <div>
-          <Eyebrow>Workspace</Eyebrow>
-          <h1 className="font-display text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-            {user ? `${user.name.split(' ')[0]}, your projects` : 'Projects'}
-          </h1>
-          <p className="mt-1.5 text-sm text-slate-500">Pick up where the team left off — boards update live.</p>
+          <h1 className="display-tight text-3xl sm:text-4xl">Projects</h1>
+          <p className="mt-3 text-lg text-ink-soft">
+            {projects === null
+              ? 'Loading your workspace…'
+              : projects.length === 0
+                ? 'Nothing here yet.'
+                : (
+                  <>
+                    <Odometer value={openTotal} /> open {openTotal === 1 ? 'issue' : 'issues'} across <Odometer value={projects.length} />{' '}
+                    {projects.length === 1 ? 'project' : 'projects'}.
+                  </>
+                )}
+          </p>
         </div>
-        <Magnetic strength={0.2}>
-          <Button onClick={() => setShowCreate((value) => !value)} icon={<Plus className="h-4 w-4" aria-hidden="true" />}>
-            New project
-          </Button>
-        </Magnetic>
+        <Button variant="primary" onClick={() => setShowCreate((value) => !value)} aria-expanded={showCreate} icon={<Plus className="h-4 w-4" aria-hidden="true" />}>
+          New project
+        </Button>
       </header>
 
-      <section aria-label="Workspace statistics" className="grid grid-cols-3 gap-3">
-        <Stat label="Projects" value={totals.projects} />
-        <Stat label="Open issues" value={totals.open} hint="Across all projects" />
-        <Stat label="Shipped" value={totals.done} hint="Done or cancelled" />
-      </section>
-
-      <AnimatePresence>
+      <AnimatePresence initial={false}>
         {showCreate && (
           <motion.section
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: 0.22, ease: [0.2, 0.8, 0.2, 1] }}
             className="overflow-hidden"
-            aria-label="Create project"
+            aria-label="New project"
           >
-            <form onSubmit={create} className="glass flex flex-col gap-4 p-5 sm:flex-row sm:items-end">
-              <div className="flex-1">
-                <label htmlFor="project-name" className="mb-1.5 block text-xs font-medium uppercase tracking-[0.14em] text-slate-400">
-                  Name
-                </label>
-                <Input id="project-name" required maxLength={200} value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Website relaunch" />
+            <form onSubmit={create} className="paper grid gap-4 p-5 md:grid-cols-[1fr_2fr_auto] md:items-end">
+              <div>
+                <Label htmlFor="project-name">Name</Label>
+                <Input ref={nameRef} id="project-name" required maxLength={200} value={name} onChange={(event) => setName(event.target.value)} placeholder="Website relaunch" />
               </div>
-              <div className="flex-[2]">
-                <label htmlFor="project-desc" className="mb-1.5 block text-xs font-medium uppercase tracking-[0.14em] text-slate-400">
-                  Description
-                </label>
-                <Textarea id="project-desc" rows={1} maxLength={5000} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="What is this project about?" className="resize-none" />
+              <div>
+                <Label htmlFor="project-desc">What’s it for? (optional)</Label>
+                <Input id="project-desc" maxLength={5000} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="One line your team will recognise" />
               </div>
-              <Button type="submit" loading={creating} disabled={!name.trim()}>
-                Create
-              </Button>
+              <div className="flex gap-2">
+                <Button type="submit" loading={creating} disabled={!name.trim()}>
+                  Create project
+                </Button>
+                <Button variant="quiet" onClick={() => setShowCreate(false)}>
+                  Cancel
+                </Button>
+              </div>
             </form>
           </motion.section>
         )}
       </AnimatePresence>
 
       {projects === null ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label="Loading projects">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-44" />
+        <div className="flex flex-col gap-2" aria-label="Loading projects">
+          {[0, 1, 2].map((key) => (
+            <Skeleton key={key} className="h-24" />
           ))}
         </div>
       ) : projects.length === 0 ? (
         <EmptyState
-          icon={<FolderKanban className="h-8 w-8" aria-hidden="true" />}
-          title="No projects yet"
-          hint="Create your first project above — it takes seconds and the board is live immediately."
+          title="Start your first board"
+          hint="A project is a board your whole team can work on at once. Give it a name and you can add issues right away."
+          action={
+            <Button variant="ink" onClick={() => setShowCreate(true)} icon={<Plus className="h-4 w-4" aria-hidden="true" />}>
+              New project
+            </Button>
+          }
         />
       ) : (
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label="Projects">
-          {projects.map((project, index) => {
-            const counts = issueCounts[project.id];
-            return (
-              <motion.li
-                key={project.id}
-                initial={{ opacity: 0, y: 18 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.07, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-              >
-                <Link
-                  to={`/projects/${project.id}`}
-                  className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-indigo-400/40 hover:bg-white/[0.06] hover:shadow-glow"
-                >
-                  <div className="mb-4 flex items-start justify-between">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500/25 to-cyan-400/25 text-indigo-300 ring-1 ring-white/10">
-                      <FolderKanban className="h-5 w-5" aria-hidden="true" />
-                    </div>
-                    <ArrowUpRight className="h-4 w-4 text-slate-600 transition-all duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-indigo-300" aria-hidden="true" />
-                  </div>
-                  <h2 className="font-display text-lg font-semibold text-white">{project.name}</h2>
-                  <p className="mt-1 line-clamp-2 flex-1 text-sm text-slate-400">{project.description ?? 'No description yet.'}</p>
-                  <div className="mt-4 flex items-center justify-between border-t border-white/[0.07] pt-3.5">
-                    <div className="flex items-center gap-2 text-xs text-slate-500">
-                      {counts && (
-                        <>
-                          <span className="rounded-full border border-cyan-400/25 bg-cyan-400/10 px-2 py-0.5 text-cyan-300">{counts.open} open</span>
-                          <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2 py-0.5 text-emerald-300">{counts.done} done</span>
-                        </>
-                      )}
-                    </div>
-                    <span className="text-[11px] text-slate-600">created {timeAgo(project.createdAt)}</span>
-                  </div>
-                </Link>
-              </motion.li>
-            );
-          })}
-        </ul>
+        <section aria-label="Projects" className="paper overflow-hidden">
+          <div className="hidden items-center justify-end gap-4 border-b border-rule/70 px-5 py-2.5 text-xs text-graphite md:flex">
+            {BOARD_STATUSES.map((status) => (
+              <span key={status} className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: STATUS_FILL[status] }} aria-hidden="true" />
+                {STATUS_LABEL[status]}
+              </span>
+            ))}
+          </div>
+          <ul>
+            {projects.map((project, index) => (
+              <ProjectRow key={project.id} index={index} project={project} tally={tallies[project.id]} onDelete={user?.role === 'ADMIN' || project.createdBy === user?.id ? remove : undefined} />
+            ))}
+          </ul>
+        </section>
       )}
-
-      <p className="flex items-center gap-2 text-xs text-slate-600">
-        <Avatar name={user?.name ?? '?'} size="sm" />
-        Signed in as {user?.email} · tenant-scoped data · row-level isolation enforced server-side
-      </p>
     </div>
+  );
+}
+
+function ProjectRow({ project, tally, index, onDelete }: { project: Project; tally?: Tally; index: number; onDelete?: (project: Project) => void }) {
+  const total = tally ? BOARD_STATUSES.reduce((sum, status) => sum + tally[status], 0) : 0;
+  return (
+    <motion.li
+      initial={{ opacity: 0, x: -12 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 30, delay: index * 0.06 }}
+      className="group relative border-b border-rule/60 last:border-b-0"
+    >
+      <Link
+        to={`/projects/${project.id}`}
+        state={{ project }}
+        className="grid gap-x-10 gap-y-3 px-5 py-5 transition-colors hover:bg-blotter/35 focus-visible:bg-blotter/35 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_7rem] md:items-center"
+      >
+        <div className="min-w-0">
+          <motion.h2
+            layoutId={`project-title-${project.id}`}
+            transition={{ type: 'spring', stiffness: 260, damping: 30 }}
+            className="display w-fit text-2xl leading-tight group-hover:underline group-hover:decoration-2 group-hover:underline-offset-4"
+          >
+            {project.name}
+          </motion.h2>
+          <p className="mt-1 line-clamp-2 max-w-[60ch] text-ink-soft">{project.description || 'No description'}</p>
+        </div>
+
+        <div>
+          {tally ? (
+            <>
+              <div
+                className="flex h-2.5 gap-[2px] overflow-hidden rounded-full bg-blotter"
+                role="img"
+                aria-label={BOARD_STATUSES.map((status) => `${tally[status]} ${STATUS_LABEL[status].toLowerCase()}`).join(', ')}
+              >
+                {total > 0 &&
+                  BOARD_STATUSES.map((status, segment) =>
+                    tally[status] > 0 ? (
+                      <motion.span
+                        key={status}
+                        className="h-full first:rounded-l-full last:rounded-r-full"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(tally[status] / total) * 100}%` }}
+                        transition={{ type: 'spring', stiffness: 120, damping: 20, delay: 0.1 + index * 0.08 + segment * 0.05 }}
+                        style={{ backgroundColor: STATUS_FILL[status] }}
+                      />
+                    ) : null,
+                  )}
+              </div>
+              <p className="mt-2 text-sm text-graphite">
+                {total === 0 ? 'No issues yet' : `${openCount(tally)} open, ${tally.DONE} done`}
+              </p>
+            </>
+          ) : (
+            <Skeleton className="h-3 w-full" />
+          )}
+        </div>
+
+        <p className="text-sm text-graphite md:text-right">Started {timeAgo(project.createdAt)}</p>
+      </Link>
+
+      {onDelete && (
+        <button
+          type="button"
+          onClick={() => onDelete(project)}
+          aria-label={`Delete ${project.name}`}
+          className={cn(
+            'absolute right-3 top-3 rounded-md p-1.5 text-graphite opacity-0 transition-opacity hover:bg-alarm-wash hover:text-alarm',
+            'focus-visible:opacity-100 group-hover:opacity-100',
+          )}
+        >
+          <Trash2 className="h-4 w-4" aria-hidden="true" />
+        </button>
+      )}
+    </motion.li>
   );
 }

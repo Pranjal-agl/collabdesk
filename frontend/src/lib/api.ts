@@ -10,6 +10,7 @@ import {
   type Page,
   type Priority,
   type Project,
+  type UserSummary,
 } from './types';
 import { demoApi, demoSyncToken } from './demo';
 import { getAccessToken, getRefreshToken } from './session';
@@ -96,7 +97,8 @@ class HttpApi implements Api {
     this.req<Project>('/api/projects', { method: 'POST', body: JSON.stringify(req) });
   deleteProject = (id: string) => this.req<void>(`/api/projects/${id}`, { method: 'DELETE' });
 
-  listIssues = (projectId: string) => this.req<Page<Issue>>(`/api/projects/${projectId}/issues`);
+  // The backend pages at 25 by default; a board needs every card.
+  listIssues = (projectId: string) => this.req<Page<Issue>>(`/api/projects/${projectId}/issues?size=500`);
   getIssue = (projectId: string, issueId: string) => this.req<Issue>(`/api/projects/${projectId}/issues/${issueId}`);
   createIssue = (req: { projectId: string; title: string; description?: string; priority: Priority; assigneeId?: string }) =>
     this.req<Issue>(`/api/projects/${req.projectId}/issues`, { method: 'POST', body: JSON.stringify(req) });
@@ -112,6 +114,8 @@ class HttpApi implements Api {
     this.req<void>(`/api/issues/${issueId}/comments/${commentId}`, { method: 'DELETE' });
 
   listAuditLogs = (page: number, size: number) => this.req<Page<AuditLog>>(`/api/audit-logs?page=${page}&size=${size}`);
+
+  listUsers = () => this.req<UserSummary[]>('/api/users');
 }
 
 class DemoApiWrapper implements Api {
@@ -188,6 +192,10 @@ class DemoApiWrapper implements Api {
   listAuditLogs: Api['listAuditLogs'] = async (p, s) => {
     this.sync(getAccessToken());
     return demoApi.listAuditLogs(p, s);
+  };
+  listUsers: Api['listUsers'] = async () => {
+    this.sync(getAccessToken());
+    return demoApi.listUsers();
   };
 }
 

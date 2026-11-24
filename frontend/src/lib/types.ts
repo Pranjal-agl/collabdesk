@@ -74,14 +74,37 @@ export interface PresenceUser {
   displayName: string;
 }
 
+/** actorId: who made the change (sent by the backend on every issue event). */
 export type IssueEvent =
-  | { type: 'CREATED'; data: Issue }
-  | { type: 'UPDATED'; data: Issue }
-  | { type: 'DELETED'; issueId: string };
+  | { type: 'CREATED'; data: Issue; actorId?: string }
+  | { type: 'UPDATED'; data: Issue; actorId?: string }
+  | { type: 'DELETED'; issueId: string; actorId?: string };
 export type CommentEvent = { type: 'CREATED'; data: Comment } | { type: 'DELETED'; commentId: string };
 export interface PresenceEvent {
   projectId: string;
   users: PresenceUser[];
+}
+
+export interface UserSummary {
+  id: string;
+  displayName: string;
+  role: UserRole;
+}
+
+/** Live cursor on a board. x is a fraction of the board width, y is px from its top. */
+export interface CursorEvent {
+  userId: string;
+  displayName: string;
+  gone: boolean;
+  x?: number;
+  y?: number;
+  dragging?: string | null;
+}
+
+export interface TypingEvent {
+  userId: string;
+  displayName: string;
+  typing: boolean;
 }
 
 /** Statuses rendered as board columns; CANCELLED issues stay out of the flow. */
@@ -123,6 +146,7 @@ export interface Api {
     projectId: string,
     issueId: string,
     patch: Partial<Pick<Issue, 'title' | 'description' | 'status' | 'priority' | 'assigneeId'>> & {
+      clearAssignee?: boolean;
       version: number;
     },
   ): Promise<Issue>;
@@ -133,4 +157,6 @@ export interface Api {
   deleteComment(issueId: string, commentId: string): Promise<void>;
 
   listAuditLogs(page: number, size: number): Promise<Page<AuditLog>>;
+
+  listUsers(): Promise<UserSummary[]>;
 }

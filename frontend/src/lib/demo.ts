@@ -75,9 +75,9 @@ let comments: Comment[] = [
 ];
 
 let auditLogs: AuditLog[] = [
-  { id: uid(), actorId: users[0].id, action: 'ISSUE_CREATED', resourceType: 'ISSUE', resourceId: '30000000-0000-0000-0000-000000000008', payload: '{"title":"Rate-limit middleware"}', createdAt: iso(1000 * 60 * 60 * 8) },
-  { id: uid(), actorId: users[1].id, action: 'ISSUE_UPDATED', resourceType: 'ISSUE', resourceId: '30000000-0000-0000-0000-000000000001', payload: '{"status":"IN_PROGRESS"}', createdAt: iso(1000 * 60 * 22) },
-  { id: uid(), actorId: users[0].id, action: 'COMMENT_CREATED', resourceType: 'COMMENT', resourceId: '50000000-0000-0000-0000-000000000002', payload: null, createdAt: iso(1000 * 60 * 18) },
+  { id: uid(), actorId: users[0].id, action: 'CREATE', resourceType: 'ISSUE', resourceId: '30000000-0000-0000-0000-000000000008', payload: 'Rate-limit middleware', createdAt: iso(1000 * 60 * 60 * 8) },
+  { id: uid(), actorId: users[1].id, action: 'UPDATE', resourceType: 'ISSUE', resourceId: '30000000-0000-0000-0000-000000000001', payload: 'Ship v1 dashboard', createdAt: iso(1000 * 60 * 22) },
+  { id: uid(), actorId: users[0].id, action: 'CREATE', resourceType: 'COMMENT', resourceId: '50000000-0000-0000-0000-000000000002', payload: 'Pushing the optimistic rollback demo tomorrow.', createdAt: iso(1000 * 60 * 18) },
 ];
 
 // ---------------------------------------------------------------------------
@@ -91,7 +91,9 @@ type Handler = (msg: unknown) => void;
 const topicHandlers = new Map<string, Set<Handler>>();
 
 function emit(topic: string, msg: unknown): void {
-  topicHandlers.get(topic)?.forEach((handler) => handler(msg));
+  // Serialize like a real STOMP frame, so subscribers never share (and later
+  // see mutations of) the mock's internal objects.
+  topicHandlers.get(topic)?.forEach((handler) => handler(structuredClone(msg)));
 }
 
 interface PresenceEntry {
@@ -107,6 +109,12 @@ function broadcastPresence(projectId: string): void {
     for (const entry of entries) {
       if (entry.projectId === projectId) seen.set(entry.user.userId, entry.user.displayName);
     }
+  }
+  // The bot teammate "sits" on any Acme board someone else is viewing.
+  const bot = botUser();
+  const project = projects.find((candidate) => candidate.id === projectId);
+  if (botEnabled && seen.size > 0 && !seen.has(bot.id) && project && projectBelongsTo(projectId, bot.tenantId)) {
+    seen.set(bot.id, bot.name);
   }
   emit(`/topic/presence/${projectId}`, {
     projectId,
@@ -125,6 +133,19 @@ export const demoBus = {
     return () => set!.delete(handler);
   },
   publish(sessionId: string | null, destination: string, body: unknown): void {
+    const relay = destination.match(/^\/app\/(cursor|typing)\/([^/]+)$/);
+    if (relay) {
+      const user = currentUser();
+      if (!user) return;
+      const [, kind, id] = relay;
+      const payload = (body ?? {}) as Record<string, unknown>;
+      if (kind === 'cursor') {
+        emit(`/topic/cursors/${id}`, { userId: user.id, displayName: user.name, gone: !!payload.gone, x: payload.x, y: payload.y, dragging: payload.dragging ?? null });
+      } else {
+        emit(`/topic/typing/${id}`, { userId: user.id, displayName: user.name, typing: !!payload.typing });
+      }
+      return;
+    }
     const presenceMatch = destination.match(/^\/app\/presence\/([^/]+)\/(join|leave)$/);
     if (!presenceMatch || !sessionId) return;
     const [, projectId, action] = presenceMatch;
@@ -199,7 +220,7 @@ function bearer(): SessionUser & { tokenVersion: number } {
 
 function setClaimsFromToken(token: string): void {
   try {
-    const payload = JSON.parse(atob(token.split('.')[2]));
+    const payload = JSON.parse(atob(token.split('.')[1]));
     currentClaims = {
       id: payload.sub,
       tenantId: payload.tenantId,
@@ -241,62 +262,158 @@ const BOT_COMMENTS = [
 
 let botEnabled = true;
 
-function startBot(): void {
-  setInterval(() => {
-    if (!botEnabled || !currentClaims) return;
-    // Only "work" in projects someone is currently viewing.
-    const liveProjects = new Set<string>();
-    for (const entries of presenceBySession.values()) {
-      for (const entry of entries) liveProjects.add(entry.projectId);
-    }
-    if (liveProjects.size === 0) return;
-    const projectId = [...liveProjects][Math.floor(Math.random() * liveProjects.size)];
-    const bob = users[1];
-    const before = issues.length;
-
-    if (Math.random() < 0.45) {
-      const [title, priority] = BOT_TITLES[Math.floor(Math.random() * BOT_TITLES.length)];
-      const issue: Issue = {
-        id: uid(),
-        projectId,
-        title,
-        description: null,
-        status: 'TODO',
-        priority,
-        assigneeId: null,
-        createdBy: bob.id,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        version: 0,
-      };
-      issues.unshift(issue);
-      auditLogs.unshift({ id: uid(), actorId: bob.id, action: 'ISSUE_CREATED', resourceType: 'ISSUE', resourceId: issue.id, payload: JSON.stringify({ title }), createdAt: issue.createdAt });
-      emit(`/topic/issues/${projectId}`, { type: 'CREATED', data: issue });
-    } else {
-      const candidates = issues.filter((issue) => issue.projectId === projectId);
-      if (candidates.length === 0) return;
-      const issue = candidates[Math.floor(Math.random() * candidates.length)];
-      const comment: Comment = {
-        id: uid(),
-        issueId: issue.id,
-        authorId: bob.id,
-        body: BOT_COMMENTS[Math.floor(Math.random() * BOT_COMMENTS.length)],
-        createdAt: new Date().toISOString(),
-        version: 0,
-      };
-      comments.push(comment);
-      auditLogs.unshift({ id: uid(), actorId: bob.id, action: 'COMMENT_CREATED', resourceType: 'COMMENT', resourceId: comment.id, payload: null, createdAt: comment.createdAt });
-      emit(`/topic/issues/${issue.id}/comments`, { type: 'CREATED', data: comment });
-      if (issues.length === before) {
-        // nudge the board that the issue changed
-        issue.updatedAt = comment.createdAt;
-        issue.version += 1;
-        emit(`/topic/issues/${projectId}`, { type: 'UPDATED', data: issue });
-      }
-    }
-  }, 14_000);
+/** The bot plays Bob — or Alice, when you're signed in as Bob. */
+function botUser(): DemoUser {
+  return currentClaims?.id === users[1].id ? users[0] : users[1];
 }
-startBot();
+
+const FLOW: Issue['status'][] = ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE'];
+type Point = { x: number; y: number };
+const botCursor = new Map<string, Point>();
+
+/** Rough position of a card on the client's board, in the cursor coordinate
+ *  space (x = fraction of board width, y = px from the board top). */
+function cardPoint(projectId: string, issue: Issue): Point {
+  const column = Math.max(0, FLOW.indexOf(issue.status));
+  const row = issues.filter((candidate) => candidate.projectId === projectId && candidate.status === issue.status).indexOf(issue);
+  return { x: (column + 0.55) / 4, y: 78 + Math.max(0, row) * 116 + 40 };
+}
+
+function emitCursor(projectId: string, point: Point, dragging: string | null): void {
+  const bot = botUser();
+  emit(`/topic/cursors/${projectId}`, { userId: bot.id, displayName: bot.name, gone: false, x: point.x, y: point.y, dragging });
+}
+
+/** Glide the bot's cursor with an ease-in-out curve and a little hand wobble. */
+async function glide(projectId: string, to: Point, ms: number, dragging: string | null = null): Promise<void> {
+  const from = botCursor.get(projectId) ?? { x: 0.92, y: 420 };
+  const steps = Math.max(1, Math.round(ms / 33));
+  for (let step = 1; step <= steps; step++) {
+    const t = step / steps;
+    const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    const wobble = Math.sin(t * Math.PI) * 6;
+    const point = { x: from.x + (to.x - from.x) * eased, y: from.y + (to.y - from.y) * eased - wobble };
+    emitCursor(projectId, point, dragging);
+    await sleep(33);
+  }
+  botCursor.set(projectId, to);
+}
+
+function liveProjectsForBot(): string[] {
+  const live = new Set<string>();
+  for (const entries of presenceBySession.values()) {
+    for (const entry of entries) live.add(entry.projectId);
+  }
+  return [...live].filter((projectId) => projectBelongsTo(projectId, botUser().tenantId));
+}
+
+async function botMove(projectId: string): Promise<void> {
+  const movable = issues.filter((issue) => issue.projectId === projectId && issue.status !== 'DONE' && issue.status !== 'CANCELLED');
+  if (movable.length === 0) return botCreate(projectId);
+  const issue = movable[Math.floor(Math.random() * movable.length)];
+  const bot = botUser();
+  await glide(projectId, cardPoint(projectId, issue), 900);
+  await sleep(260);
+  const next = FLOW[FLOW.indexOf(issue.status) + 1] ?? 'DONE';
+  const landing = cardPoint(projectId, { ...issue, status: next } as Issue);
+  const targetRows = issues.filter((candidate) => candidate.projectId === projectId && candidate.status === next).length;
+  await glide(projectId, { x: landing.x, y: 78 + targetRows * 116 + 40 }, 1300, issue.id);
+  if (!issues.includes(issue) || issue.status === 'CANCELLED') {
+    emitCursor(projectId, botCursor.get(projectId)!, null);
+    return; // deleted or changed under us while "dragging"
+  }
+  issue.status = next;
+  issue.version += 1;
+  issue.updatedAt = new Date().toISOString();
+  auditLogs.unshift({ id: uid(), actorId: bot.id, action: 'UPDATE', resourceType: 'ISSUE', resourceId: issue.id, payload: issue.title, createdAt: issue.updatedAt });
+  emit(`/topic/issues/${projectId}`, { type: 'UPDATED', data: issue, actorId: bot.id });
+  emitCursor(projectId, botCursor.get(projectId)!, null);
+}
+
+async function botCreate(projectId: string): Promise<void> {
+  const bot = botUser();
+  await glide(projectId, { x: 0.25, y: -60 }, 900);
+  await sleep(700);
+  const [title, priority] = BOT_TITLES[Math.floor(Math.random() * BOT_TITLES.length)];
+  const issue: Issue = {
+    id: uid(),
+    projectId,
+    title,
+    description: null,
+    status: 'TODO',
+    priority,
+    assigneeId: Math.random() < 0.5 ? bot.id : null,
+    createdBy: bot.id,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    version: 0,
+  };
+  issues.unshift(issue);
+  auditLogs.unshift({ id: uid(), actorId: bot.id, action: 'CREATE', resourceType: 'ISSUE', resourceId: issue.id, payload: title, createdAt: issue.createdAt });
+  emit(`/topic/issues/${projectId}`, { type: 'CREATED', data: issue, actorId: bot.id });
+  await glide(projectId, cardPoint(projectId, issue), 700);
+}
+
+async function botComment(projectId: string): Promise<void> {
+  const candidates = issues.filter((issue) => issue.projectId === projectId);
+  if (candidates.length === 0) return;
+  // Prefer an issue someone has open, so the typing indicator is visible.
+  const watched = candidates.filter((issue) => (topicHandlers.get(`/topic/typing/${issue.id}`)?.size ?? 0) > 0);
+  const pool = watched.length > 0 ? watched : candidates;
+  const issue = pool[Math.floor(Math.random() * pool.length)];
+  const bot = botUser();
+  emit(`/topic/typing/${issue.id}`, { userId: bot.id, displayName: bot.name, typing: true });
+  await sleep(2600 + Math.random() * 1200);
+  emit(`/topic/typing/${issue.id}`, { userId: bot.id, displayName: bot.name, typing: false });
+  if (!issues.includes(issue)) return;
+  const comment: Comment = {
+    id: uid(),
+    issueId: issue.id,
+    authorId: bot.id,
+    body: BOT_COMMENTS[Math.floor(Math.random() * BOT_COMMENTS.length)],
+    createdAt: new Date().toISOString(),
+    version: 0,
+  };
+  comments.push(comment);
+  auditLogs.unshift({ id: uid(), actorId: bot.id, action: 'CREATE', resourceType: 'COMMENT', resourceId: comment.id, payload: comment.body, createdAt: comment.createdAt });
+  emit(`/topic/issues/${issue.id}/comments`, { type: 'CREATED', data: comment });
+}
+
+async function botWander(projectId: string): Promise<void> {
+  const here = botCursor.get(projectId) ?? { x: 0.8, y: 300 };
+  const to = {
+    x: Math.min(0.97, Math.max(0.03, here.x + (Math.random() - 0.5) * 0.35)),
+    y: Math.min(560, Math.max(30, here.y + (Math.random() - 0.5) * 220)),
+  };
+  await glide(projectId, to, 700 + Math.random() * 700);
+}
+
+async function startBot(): Promise<void> {
+  let nextActionAt = Date.now() + 5000;
+  let firstAction = true; // open with a drag: the clearest demo of live collaboration
+  for (;;) {
+    await sleep(900 + Math.random() * 900);
+    if (!botEnabled || !currentClaims) continue;
+    const live = liveProjectsForBot();
+    if (live.length === 0) continue;
+    const projectId = live[Math.floor(Math.random() * live.length)];
+    try {
+      if (Date.now() < nextActionAt) {
+        await botWander(projectId);
+        continue;
+      }
+      const roll = firstAction ? 0 : Math.random();
+      firstAction = false;
+      if (roll < 0.45) await botMove(projectId);
+      else if (roll < 0.7) await botCreate(projectId);
+      else await botComment(projectId);
+      nextActionAt = Date.now() + 8000 + Math.random() * 5000;
+    } catch {
+      /* the demo bot never takes the page down */
+    }
+  }
+}
+void startBot();
 
 // ---------------------------------------------------------------------------
 // API implementation
@@ -320,7 +437,7 @@ function authResponse(user: DemoUser): AuthResponse {
   return { accessToken: makeAccessToken(user), refreshToken: issueRefreshToken(user.id), tokenType: 'Bearer', expiresInMs: 900_000 };
 }
 
-export const demoApi: Api = {
+const rawDemoApi: Api = {
   async login(req) {
     await latency();
     const user = users.find((candidate) => candidate.email.toLowerCase() === req.email.toLowerCase());
@@ -387,16 +504,18 @@ export const demoApi: Api = {
     // Tenant tag is implicit: the mock only exposes it to the creating tenant.
     (project as Project & { tenantId?: string }).tenantId = user.tenantId;
     projects.push(project);
-    recordAudit('PROJECT_CREATED', 'PROJECT', project.id, JSON.stringify({ name: project.name }));
+    recordAudit('CREATE', 'PROJECT', project.id, project.name);
     return project;
   },
 
   async deleteProject(id) {
     await latency();
-    await this.getProject(id);
+    const doomed = await this.getProject(id);
+    const actor = bearer();
+    if (actor.role !== 'ADMIN' && doomed.createdBy !== actor.id) throw new ApiError(403, 'Only admins and the person who created a project can delete it');
     projects = projects.filter((project) => project.id !== id);
     issues = issues.filter((issue) => issue.projectId !== id);
-    recordAudit('PROJECT_DELETED', 'PROJECT', id, null);
+    recordAudit('DELETE', 'PROJECT', id, doomed.name);
   },
 
   async listIssues(projectId) {
@@ -432,8 +551,8 @@ export const demoApi: Api = {
       version: 0,
     };
     issues.unshift(issue);
-    recordAudit('ISSUE_CREATED', 'ISSUE', issue.id, JSON.stringify({ title: issue.title }));
-    emit(`/topic/issues/${issue.projectId}`, { type: 'CREATED', data: issue });
+    recordAudit('CREATE', 'ISSUE', issue.id, issue.title);
+    emit(`/topic/issues/${issue.projectId}`, { type: 'CREATED', data: issue, actorId: user.id });
     return issue;
   },
 
@@ -443,17 +562,22 @@ export const demoApi: Api = {
     const issue = issues.find((candidate) => candidate.id === issueId && candidate.projectId === projectId);
     if (!issue || !projectBelongsTo(projectId, user.tenantId)) throw new ApiError(404, 'Issue not found');
     if (patch.version !== issue.version) {
-      throw new ApiError(409, 'Resource was modified concurrently. Please refresh and retry.');
+      throw new ApiError(409, 'Someone else changed this issue first');
     }
     if (patch.title !== undefined) issue.title = patch.title;
     if (patch.description !== undefined) issue.description = patch.description;
     if (patch.status !== undefined) issue.status = patch.status;
     if (patch.priority !== undefined) issue.priority = patch.priority;
-    if (patch.assigneeId !== undefined) issue.assigneeId = patch.assigneeId;
+    if (patch.clearAssignee) issue.assigneeId = null;
+    else if (patch.assigneeId) {
+      const assignee = users.find((candidate) => candidate.id === patch.assigneeId);
+      if (!assignee || assignee.tenantId !== user.tenantId) throw new ApiError(400, 'That person isn’t in this workspace');
+      issue.assigneeId = patch.assigneeId;
+    }
     issue.version += 1;
     issue.updatedAt = new Date().toISOString();
-    recordAudit('ISSUE_UPDATED', 'ISSUE', issue.id, JSON.stringify({ ...patch, version: undefined }));
-    emit(`/topic/issues/${issue.projectId}`, { type: 'UPDATED', data: issue });
+    recordAudit('UPDATE', 'ISSUE', issue.id, issue.title);
+    emit(`/topic/issues/${issue.projectId}`, { type: 'UPDATED', data: issue, actorId: user.id });
     return { ...issue };
   },
 
@@ -464,8 +588,8 @@ export const demoApi: Api = {
     if (!issue || !projectBelongsTo(projectId, user.tenantId)) throw new ApiError(404, 'Issue not found');
     issues = issues.filter((candidate) => candidate.id !== issueId);
     comments = comments.filter((comment) => comment.issueId !== issueId);
-    recordAudit('ISSUE_DELETED', 'ISSUE', issueId, null);
-    emit(`/topic/issues/${projectId}`, { type: 'DELETED', issueId });
+    recordAudit('DELETE', 'ISSUE', issueId, issue.title);
+    emit(`/topic/issues/${projectId}`, { type: 'DELETED', issueId, actorId: user.id });
   },
 
   async listComments(issueId) {
@@ -490,7 +614,7 @@ export const demoApi: Api = {
       version: 0,
     };
     comments.push(comment);
-    recordAudit('COMMENT_CREATED', 'COMMENT', comment.id, null);
+    recordAudit('CREATE', 'COMMENT', comment.id, comment.body);
     emit(`/topic/issues/${issueId}/comments`, { type: 'CREATED', data: comment });
     return comment;
   },
@@ -504,7 +628,7 @@ export const demoApi: Api = {
       throw new ApiError(403, 'Only the author (or an admin) can delete a comment');
     }
     comments = comments.filter((candidate) => candidate.id !== commentId);
-    recordAudit('COMMENT_DELETED', 'COMMENT', commentId, null);
+    recordAudit('DELETE', 'COMMENT', commentId, comment.body);
     emit(`/topic/issues/${issueId}/comments`, { type: 'DELETED', commentId });
   },
 
@@ -512,7 +636,17 @@ export const demoApi: Api = {
     await latency();
     const user = bearer();
     if (user.role !== 'ADMIN') throw new ApiError(403, 'Admin role required');
-    return page(auditLogs, pageNumber, size);
+    const tenantLogs = auditLogs.filter((log) => users.find((candidate) => candidate.id === log.actorId)?.tenantId === user.tenantId);
+    return page(tenantLogs, pageNumber, size);
+  },
+
+  async listUsers() {
+    await latency();
+    const { tenantId } = bearer();
+    return users
+      .filter((user) => user.tenantId === tenantId)
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((user) => ({ id: user.id, displayName: user.name, role: user.role }));
   },
 };
 
@@ -541,3 +675,12 @@ export function demoSyncToken(accessToken: string | null): void {
     /* not a demo-shaped token */
   }
 }
+
+/** Every response crosses a simulated wire: callers get copies, exactly like
+ *  JSON over HTTP, instead of live references into the mock's tables. */
+export const demoApi: Api = Object.fromEntries(
+  Object.entries(rawDemoApi).map(([name, fn]) => [
+    name,
+    async (...args: unknown[]) => structuredClone(await (fn as (...a: unknown[]) => Promise<unknown>).apply(rawDemoApi, args)),
+  ]),
+) as unknown as Api;

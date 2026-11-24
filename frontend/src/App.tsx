@@ -1,7 +1,6 @@
 import { type ReactNode } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useAuth } from './lib/auth';
-import { CursorGlow } from './components/CursorGlow';
 import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
 import { Projects } from './pages/Projects';
@@ -19,9 +18,7 @@ function RequireAuth({ children, admin = false }: { children: ReactNode; admin?:
 
 export default function App() {
   return (
-    <>
-      <CursorGlow />
-      <Routes>
+    <Routes>
       <Route path="/auth/login" element={<Login />} />
       <Route
         element={
@@ -38,6 +35,5 @@ export default function App() {
       </Route>
       <Route path="*" element={<Navigate to="/projects" replace />} />
     </Routes>
-    </>
   );
 }
