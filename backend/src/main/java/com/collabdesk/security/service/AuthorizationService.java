@@ -36,6 +36,15 @@ public class AuthorizationService {
         return projectRepository.findByIdAndTenantId(projectId, user.getTenantId()).isPresent();
     }
 
+    /** Deleting a project wipes every issue and comment in it, so it is limited
+     *  to admins and the person who created the project (same tenant only). */
+    public boolean canDeleteProject(UUID projectId, Authentication auth) {
+        User user = (User) auth.getPrincipal();
+        return projectRepository.findByIdAndTenantId(projectId, user.getTenantId())
+                .map(project -> user.getRole() == UserRole.ADMIN || project.getCreatedBy().equals(user.getId()))
+                .orElse(true); // let the service answer 404 for unknown/foreign ids instead of leaking 403
+    }
+
     public boolean canEditComment(UUID commentId, Authentication auth) {
         User user = (User) auth.getPrincipal();
         return commentRepository.findById(commentId)

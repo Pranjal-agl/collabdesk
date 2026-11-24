@@ -13,5 +13,6 @@ public record UpdateIssueRequest(
         IssueStatus status,
         Priority priority,
         UUID assigneeId,
+        Boolean clearAssignee,  // true = unassign (a null assigneeId means "leave unchanged")
         @NotNull Long version   // client must send current version for optimistic lock
 ) {}

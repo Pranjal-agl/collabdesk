@@ -6,6 +6,8 @@ import com.collabdesk.domain.entity.User;
 import com.collabdesk.dto.request.CreateProjectRequest;
 import com.collabdesk.dto.request.UpdateProjectRequest;
 import com.collabdesk.dto.response.ProjectResponse;
+import com.collabdesk.repository.CommentRepository;
+import com.collabdesk.repository.IssueRepository;
 import com.collabdesk.repository.ProjectRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
@@ -24,6 +26,8 @@ import java.util.UUID;
 public class ProjectService {
 
     private final ProjectRepository projectRepository;
+    private final IssueRepository issueRepository;
+    private final CommentRepository commentRepository;
     private final AuditService auditService;
 
     @Cacheable(value = "projects", key = "#tenantId")
@@ -34,7 +38,9 @@ public class ProjectService {
                 .toList();
     }
 
-    @Cacheable(value = "project", key = "#projectId")
+    // Tenant must be part of the key: keyed on projectId alone, a cached Acme
+    // project was served to any tenant that asked for the same id.
+    @Cacheable(value = "project", key = "#tenantId + '-' + #projectId")
     public ProjectResponse get(UUID projectId, UUID tenantId) {
         return projectRepository.findByIdAndTenantId(projectId, tenantId)
                 .map(ProjectResponse::from)
@@ -75,18 +81,21 @@ public class ProjectService {
             project.setDescription(req.description());
         }
 
-        Project saved = projectRepository.save(project);
+        Project saved = projectRepository.saveAndFlush(project);
         auditService.log(actor.getTenantId(), actor.getId(), "UPDATE", "PROJECT", saved.getId(), saved.getName());
         return ProjectResponse.from(saved);
     }
 
     @Transactional
-    @CacheEvict(value = {"projects", "project"}, allEntries = true)
-    @PreAuthorize("@authz.canEditProject(#projectId, authentication)")
+    @CacheEvict(value = {"projects", "project", "issues", "issue"}, allEntries = true)
+    @PreAuthorize("@authz.canDeleteProject(#projectId, authentication)")
     public void delete(UUID projectId, User actor) {
         Project project = projectRepository.findByIdAndTenantId(projectId, actor.getTenantId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 
+        // Children first: comments -> issues -> project (plain FKs, no cascade).
+        commentRepository.deleteAllInProject(projectId, actor.getTenantId());
+        issueRepository.deleteAllInProject(projectId, actor.getTenantId());
         projectRepository.delete(project);
         auditService.log(actor.getTenantId(), actor.getId(), "DELETE", "PROJECT", project.getId(), project.getName());
     }

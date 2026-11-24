@@ -44,9 +44,10 @@ public class IssueController {
 
     @GetMapping("/{issueId}")
     public ResponseEntity<IssueResponse> get(
+            @PathVariable UUID projectId,
             @PathVariable UUID issueId,
             @AuthenticationPrincipal User user) {
-        IssueResponse issue = issueService.get(issueId, user.getTenantId());
+        IssueResponse issue = issueService.get(projectId, issueId, user.getTenantId());
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.empty().cachePrivate().maxAge(Duration.ofSeconds(10)).mustRevalidate())
                 .body(issue);
@@ -66,17 +67,19 @@ public class IssueController {
 
     @PatchMapping("/{issueId}")
     public IssueResponse update(
+            @PathVariable UUID projectId,
             @PathVariable UUID issueId,
             @Valid @RequestBody UpdateIssueRequest req,
             @AuthenticationPrincipal User user) {
-        return issueService.update(issueId, req, user);
+        return issueService.update(projectId, issueId, req, user);
     }
 
     @DeleteMapping("/{issueId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(
+            @PathVariable UUID projectId,
             @PathVariable UUID issueId,
             @AuthenticationPrincipal User user) {
-        issueService.delete(issueId, user);
+        issueService.delete(projectId, issueId, user);
     }
 }
