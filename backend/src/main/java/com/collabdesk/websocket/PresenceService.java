@@ -38,6 +38,22 @@ public class PresenceService {
         broadcast(projectId);
     }
 
+    /** Removes a session from one project only (SPA navigated away) while
+     *  keeping any other project views of the same socket alive. */
+    public void leaveProject(String sessionId, UUID projectId) {
+        SessionEntry entry = sessionsBySessionId.get(sessionId);
+        if (entry == null || !entry.projectId().equals(projectId)) return;
+        sessionsBySessionId.remove(sessionId);
+        Map<String, PresenceUser> project = byProject.get(projectId);
+        if (project != null) {
+            project.remove(sessionId);
+            if (project.isEmpty()) {
+                byProject.remove(projectId);
+            }
+        }
+        broadcast(projectId);
+    }
+
     public void leave(String sessionId) {
         SessionEntry entry = sessionsBySessionId.remove(sessionId);
         if (entry == null) return;

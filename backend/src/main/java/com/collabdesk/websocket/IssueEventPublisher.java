@@ -11,7 +11,14 @@ import java.util.UUID;
 
 /**
  * Pushes real-time issue events to connected WebSocket clients.
- * Angular subscribes to /topic/issues/{projectId}.
+ * The React SPA subscribes to /topic/issues/{projectId} for all three event
+ * types — deletes go to the project's topic (like created/updated) so clients
+ * only ever receive events for projects they are actually viewing.
+ *
+ * Every event carries {@code actorId}: the user who made the change. Clients
+ * use it to attribute live changes ("Bob moved this") instead of guessing.
+ * Subscriptions are tenant-checked in WebSocketConfig before any of these
+ * frames can reach a session.
  */
 @Component
 @RequiredArgsConstructor
@@ -19,25 +26,19 @@ public class IssueEventPublisher {
 
     private final SimpMessagingTemplate broker;
 
-    public void publishCreated(Issue issue) {
-        send(issue.getProjectId(), "CREATED", IssueResponse.from(issue));
+    public void publishCreated(Issue issue, UUID actorId) {
+        send(issue.getProjectId(), Map.of("type", "CREATED", "data", IssueResponse.from(issue), "actorId", actorId));
     }
 
-    public void publishUpdated(Issue issue) {
-        send(issue.getProjectId(), "UPDATED", IssueResponse.from(issue));
+    public void publishUpdated(Issue issue, UUID actorId) {
+        send(issue.getProjectId(), Map.of("type", "UPDATED", "data", IssueResponse.from(issue), "actorId", actorId));
     }
 
-    public void publishDeleted(UUID issueId, UUID tenantId) {
-        broker.convertAndSend(
-                "/topic/issues/deleted",
-                Map.of("issueId", issueId, "tenantId", tenantId)
-        );
+    public void publishDeleted(Issue issue, UUID actorId) {
+        send(issue.getProjectId(), Map.of("type", "DELETED", "issueId", issue.getId(), "actorId", actorId));
     }
 
-    private void send(UUID projectId, String eventType, IssueResponse payload) {
-        broker.convertAndSend(
-                "/topic/issues/" + projectId,
-                Map.of("type", eventType, "data", payload)
-        );
+    private void send(UUID projectId, Map<String, Object> event) {
+        broker.convertAndSend("/topic/issues/" + projectId, event);
     }
 }

@@ -1,21 +1,22 @@
-# ---- Stage 1: build the Angular app -----------------------------------
+# ---- Stage 1: build the React frontend ---------------------------------
 FROM node:20-alpine AS frontend-build
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm ci
 COPY frontend/ ./
-RUN npm run build -- --configuration production
+# `vite build` runs in production mode, where .env.production sets
+# VITE_DEMO_MODE=false, so the bundle talks to the real backend.
+RUN npm run build
 
-# ---- Stage 2: build the Spring Boot jar, embedding the Angular build ---
+# ---- Stage 2: build the Spring Boot jar, embedding the frontend build ----
 FROM maven:3.9-eclipse-temurin-21 AS backend-build
 WORKDIR /app/backend
 COPY backend/pom.xml ./
 RUN mvn -B dependency:go-offline
 COPY backend/src ./src
-# Angular's "application" builder outputs to dist/<project>/browser. Placing
-# it under src/main/resources/static makes Spring Boot serve it as-is - same
-# origin as /api and /ws, so there's no CORS to configure in production.
-COPY --from=frontend-build /app/frontend/dist/collabdesk/browser ./src/main/resources/static
+# Vite outputs to dist/. Placing it under src/main/resources/static makes
+# Spring Boot serve it as-is - same origin as /api and /ws, no CORS in prod.
+COPY --from=frontend-build /app/frontend/dist ./src/main/resources/static
 RUN mvn -B clean package -DskipTests
 
 # ---- Stage 3: slim runtime image ---------------------------------------

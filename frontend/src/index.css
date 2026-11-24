@@ -1,0 +1,87 @@
+@import '@fontsource-variable/fraunces/full.css';
+@import '@fontsource-variable/schibsted-grotesk/wght.css';
+@import '@fontsource/space-mono/400.css';
+@import '@fontsource/space-mono/700.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply antialiased;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-blotter font-sans text-base text-ink;
+  }
+  ::selection {
+    @apply bg-marker text-ink;
+  }
+  :focus-visible {
+    outline: 2px solid theme('colors.cobalt.DEFAULT');
+    outline-offset: 2px;
+  }
+  button,
+  [role='button'] {
+    -webkit-tap-highlight-color: transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: theme('colors.rule');
+    border-radius: 999px;
+    border: 3px solid theme('colors.blotter.DEFAULT');
+  }
+}
+
+@layer components {
+  /* Fraunces with soft corners — ink pressed into paper. The voice of the interface. */
+  .display {
+    font-family: theme('fontFamily.serif');
+    font-weight: 620;
+    font-optical-sizing: auto;
+    font-variation-settings: 'SOFT' 60, 'WONK' 0;
+    letter-spacing: -0.012em;
+  }
+  .display-tight {
+    font-family: theme('fontFamily.serif');
+    font-weight: 560;
+    font-optical-sizing: auto;
+    font-variation-settings: 'SOFT' 80, 'WONK' 1;
+    line-height: 0.96;
+    letter-spacing: -0.028em;
+  }
+  .numeric {
+    font-variant-numeric: tabular-nums;
+  }
+  .paper {
+    @apply rounded-card bg-card shadow-paper;
+  }
+  /* Highlighter swipe for anything a teammate just changed. */
+  .marker-swipe {
+    background-image: linear-gradient(theme('colors.marker'), theme('colors.marker'));
+    background-repeat: no-repeat;
+    background-position: 0 92%;
+    background-size: 0% 58%;
+    @apply animate-marker-swipe;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marker-swipe {
+    animation: none;
+    background-size: 100% 58%;
+  }
+  .animate-blink {
+    animation: none !important;
+  }
+  * {
+    scroll-behavior: auto !important;
+  }
+}

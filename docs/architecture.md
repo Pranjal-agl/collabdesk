@@ -6,12 +6,12 @@ H2's `MODE=PostgreSQL` gives us UUID primary keys, `RANDOM_UUID()`, case-insensi
 ## Optimistic locking flow
 
 ```
-Angular client                       Spring Boot
+React client                         Spring Boot
 ─────────────────────────────────────────────────
 issue = { id, ..., version: 3 }
 [user edits title]
 snapshot = [...issues]               PATCH /issues/{id}  { version: 3, title: "new" }
-_issues.update(...)  ──────────────►
+setIssues(optimistic) ─────────────►
                                      Hibernate checks @Version == 3
                                      ✓ matches → save → version becomes 4
 ◄────────────────────────────────    200 { ..., version: 4 }
@@ -22,8 +22,8 @@ reconcile with server copy
                                      Hibernate checks @Version — already 4
                                      ✗ mismatch → OptimisticLockException
 ◄────────────────────────────────    409 Conflict
-_issues.set(snapshot)  ← rollback
-snackBar.open("Someone else edited this...")
+setIssues(snapshot)  ← rollback
+toast.error("…Moved it back.")
 ```
 
 ## Row-level tenancy
