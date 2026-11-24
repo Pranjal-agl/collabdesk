@@ -1,23 +1,24 @@
 package com.collabdesk.config;
 
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 
 /**
- * Angular owns client-side routing (e.g. /projects/abc/issues/def). When a
- * browser requests one of those paths directly (a refresh, a bookmark, a
- * shared link), Spring's default static-resource handler has no file at
- * that path and would 404. This forwards any such path to index.html so
- * Angular's router can take over and resolve it client-side.
+ * The React app owns client-side routing (/projects/abc/issues/def, /audit,
+ * /auth/login). When a browser requests one of those paths directly (a
+ * refresh, a bookmark, a shared link) there is no file at that path, so it
+ * is forwarded to index.html and the client router takes over.
  *
- * The regex excludes paths whose last segment contains a dot, so real
- * static assets (main.js, styles.css, favicon.ico, ...) are left alone and
- * served normally.
+ * Only the app's own route prefixes are listed, on purpose. The previous
+ * catch-all ("any path without a dot") also swallowed the WebSocket
+ * handshake at /ws/websocket — the controller mapping outranks the
+ * WebSocket handler mapping — so in production the socket upgrade got
+ * index.html instead of the STOMP endpoint and the app stayed "Offline".
  */
 @Controller
 public class SpaForwardingController {
 
-    @RequestMapping(value = { "/{path:^(?!api|ws|actuator|h2-console)[^\\.]+}", "/**/{path:[^\\.]+}" })
+    @GetMapping({ "/auth/**", "/projects", "/projects/**", "/audit" })
     public String forward() {
         return "forward:/index.html";
     }
