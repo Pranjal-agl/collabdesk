@@ -27,6 +27,15 @@ public class PresenceController {
         presenceService.join(headers.getSessionId(), projectId, user.getId(), user.getDisplayName());
     }
 
+    /** Client sends here when it navigates away from a project, so presence
+     *  clears immediately instead of lingering until the socket eventually
+     *  tears down (which for an SPA can be a long time). */
+    @MessageMapping("/presence/{projectId}/leave")
+    public void leave(@DestinationVariable UUID projectId, SimpMessageHeaderAccessor headers, Principal principal) {
+        if (extractUser(principal) == null) return;
+        presenceService.leaveProject(headers.getSessionId(), projectId);
+    }
+
     /** Cleans up presence when a socket drops for any reason — tab close, network loss, refresh. */
     @EventListener
     public void handleDisconnect(SessionDisconnectEvent event) {

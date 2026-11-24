@@ -118,7 +118,7 @@ public class IssueService {
         Issue issue = issueRepository.findByIdAndTenantId(issueId, actor.getTenantId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         issueRepository.delete(issue);
-        eventPublisher.publishDeleted(issueId, actor.getTenantId());
+        eventPublisher.publishDeleted(issue);
         auditService.log(actor.getTenantId(), actor.getId(), "DELETE", "ISSUE", issueId, issue.getTitle());
     }
 }

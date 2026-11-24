@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply antialiased;
+  }
+  body {
+    @apply bg-ink-950 font-sans text-slate-200;
+  }
+  ::selection {
+    @apply bg-indigo-500/30 text-white;
+  }
+  *:focus-visible {
+    @apply outline-none ring-2 ring-indigo-400/70 ring-offset-2 ring-offset-ink-950;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-white/10;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-white/20;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply rounded-2xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl;
+  }
+  .glass-strong {
+    @apply rounded-2xl border border-white/10 bg-ink-900/70 backdrop-blur-2xl;
+  }
+  .text-gradient {
+    @apply bg-gradient-to-r from-indigo-300 via-cyan-300 to-fuchsia-300 bg-clip-text text-transparent;
+  }
+}
+
+/* Respect users who prefer reduced motion: kill decorative animation. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-aurora-a,
+  .animate-aurora-b,
+  .animate-float,
+  .animate-pulse-dot {
+    animation: none !important;
+  }
+  * {
+    scroll-behavior: auto !important;
+  }
+}

@@ -11,7 +11,9 @@ import java.util.UUID;
 
 /**
  * Pushes real-time issue events to connected WebSocket clients.
- * Angular subscribes to /topic/issues/{projectId}.
+ * The React SPA subscribes to /topic/issues/{projectId} for all three event
+ * types — deletes go to the project's topic (like created/updated) so clients
+ * only ever receive events for projects they are actually viewing.
  */
 @Component
 @RequiredArgsConstructor
@@ -27,10 +29,10 @@ public class IssueEventPublisher {
         send(issue.getProjectId(), "UPDATED", IssueResponse.from(issue));
     }
 
-    public void publishDeleted(UUID issueId, UUID tenantId) {
+    public void publishDeleted(Issue issue) {
         broker.convertAndSend(
-                "/topic/issues/deleted",
-                Map.of("issueId", issueId, "tenantId", tenantId)
+                "/topic/issues/" + issue.getProjectId(),
+                Map.of("type", "DELETED", "issueId", issue.getId())
         );
     }
 
